@@ -66,6 +66,8 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', type=str, metavar='FILE',
                     help='evaluate model FILE on validation set')
+parser.add_argument('--backprop', help="majority back prop mode", 
+                    default="normalConv", choices=['normalConv', 'majority'])
 
 
 def main():
@@ -98,7 +100,7 @@ def main():
     # create model
     logging.info("creating model %s", args.model)
     model = models.__dict__[args.model]
-    model_config = {'input_size': args.input_size, 'dataset': args.dataset}
+    model_config = {'input_size': args.input_size, 'dataset': args.dataset, 'backprop': args.backprop}
 
     if args.model_config is not '':
         model_config = dict(model_config, **literal_eval(args.model_config))

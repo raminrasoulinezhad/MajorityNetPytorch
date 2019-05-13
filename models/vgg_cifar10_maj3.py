@@ -3,13 +3,13 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 from torch.autograd import Function
 from .binarized_modules import  BinarizeLinear,BinarizeConv2d
-from .maj3_purepython_gpu_test import Maj3
-
+#from .maj3_purepython_gpu_test import Maj3
+from .majority3_cuda import * 
 
 
 class VGG_Cifar10_Maj3(nn.Module):
 
-    def __init__(self, num_classes=1000):
+    def __init__(self, num_classes=1000, backprop='majority'):
         super(VGG_Cifar10_Maj3, self).__init__()
         self.infl_ratio=1;
 
@@ -19,29 +19,29 @@ class VGG_Cifar10_Maj3(nn.Module):
             nn.BatchNorm2d(128*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
-            Maj3(128*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, bias=True),
+            Maj3(128*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.BatchNorm2d(128*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
 
-            Maj3(128*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, bias=True),
+            Maj3(128*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop),
             nn.BatchNorm2d(256*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
 
-            Maj3(256*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, bias=True),
+            Maj3(256*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.BatchNorm2d(256*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
 
-            Maj3(256*self.infl_ratio, 512*self.infl_ratio, kernel_size=3, bias=True),
+            Maj3(256*self.infl_ratio, 512*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop),
             nn.BatchNorm2d(512*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
 
-            Maj3(512*self.infl_ratio, 512, kernel_size=3, bias=True),
+            Maj3(512*self.infl_ratio, 512, kernel_size=3, bias=False, backprop=backprop),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.BatchNorm2d(512),
             nn.Hardtanh(inplace=True)
@@ -79,4 +79,5 @@ class VGG_Cifar10_Maj3(nn.Module):
 
 def vgg_cifar10_maj3(**kwargs):
     num_classes = getattr(kwargs,'num_classes', 10)
-    return VGG_Cifar10_Maj3(num_classes)
+    backprop = kwargs.get('backprop')
+    return VGG_Cifar10_Maj3(num_classes, backprop)
