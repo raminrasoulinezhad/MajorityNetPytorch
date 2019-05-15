@@ -9,7 +9,7 @@ class VGG_Cifar10(nn.Module):
 
     def __init__(self, num_classes=1000):
         super(VGG_Cifar10, self).__init__()
-        self.infl_ratio=3;
+        self.infl_ratio=1;
 
         self.features = nn.Sequential(
             BinarizeConv2d(3, 128*self.infl_ratio, kernel_size=3, stride=1, padding=1,
