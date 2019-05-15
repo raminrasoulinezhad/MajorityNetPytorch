@@ -16,6 +16,7 @@ from utils import *
 from datetime import datetime
 from ast import literal_eval
 from torchvision.utils import save_image
+from tensorboardX import SummaryWriter
 
 
 model_names = sorted(name for name in models.__dict__
@@ -82,6 +83,15 @@ def main():
     save_path = os.path.join(args.results_dir, args.save)
     if not os.path.exists(save_path):
         os.makedirs(save_path)
+    else:
+        # append datatime
+        tim = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        overwrite = input ("Directory {} already exists. Would you like to overwrite (y/n): ".format(save_path))
+        if (overwrite == "y"):
+            save_path = save_path
+        else:
+            save_path = save_path+"_{}".format(tim)
+            os.makedirs(save_path)
 
     setup_logging(os.path.join(save_path, 'log.txt'))
     results_file = os.path.join(save_path, 'results.%s')
@@ -89,6 +99,9 @@ def main():
 
     logging.info("saving to %s", save_path)
     logging.debug("run arguments: %s", args)
+
+    logging.info("setting up tensorboard")
+    writer = SummaryWriter(log_dir=save_path)
 
     if 'cuda' in args.type:
         args.gpus = [int(i) for i in args.gpus.split(',')]
@@ -172,9 +185,14 @@ def main():
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
     logging.info('training regime: %s', regime)
 
-
     for epoch in range(args.start_epoch, args.epochs):
         optimizer = adjust_optimizer(optimizer, epoch, regime)
+        lr = optimizer.param_groups[0]['lr']
+
+        # user function in utils.py to override regime and update learning rate
+        lr = lr_schedule(lr, epoch, args.epochs, start_epoch=args.start_epoch)
+        writer.add_scalar("lr", lr, epoch)
+        adjust_learning_rate(optimizer, lr)    
 
         # train for one epoch
         train_loss, train_prec1, train_prec5 = train(
@@ -197,19 +215,35 @@ def main():
             'regime': regime
         }, is_best, path=save_path)
         logging.info('\n Epoch: {0}\t'
+                     'lr {lr: .5f} \t'
                      'Training Loss {train_loss:.4f} \t'
                      'Training Prec@1 {train_prec1:.3f} \t'
                      'Training Prec@5 {train_prec5:.3f} \t'
                      'Validation Loss {val_loss:.4f} \t'
                      'Validation Prec@1 {val_prec1:.3f} \t'
                      'Validation Prec@5 {val_prec5:.3f} \n'
-                     .format(epoch + 1, train_loss=train_loss, val_loss=val_loss,
+                     .format(epoch + 1, lr=lr, train_loss=train_loss, val_loss=val_loss,
                              train_prec1=train_prec1, val_prec1=val_prec1,
                              train_prec5=train_prec5, val_prec5=val_prec5))
 
+        # adds results to html log file
         results.add(epoch=epoch + 1, train_loss=train_loss, val_loss=val_loss,
                     train_error1=100 - train_prec1, val_error1=100 - val_prec1,
-                    train_error5=100 - train_prec5, val_error5=100 - val_prec5)
+                    train_error5=100 - train_prec5, val_error5=100 - val_prec5,
+                    lr=lr)
+
+        # also add results to tensorboard summary writer
+        train_res = {
+            'loss': train_loss,
+            'accuracy': train_prec1,
+        }
+        log_result(writer, "train", train_res, epoch+1)
+        val_res = {
+            'loss': val_loss,
+            'accuracy': val_prec1,
+        }
+        log_result(writer, "val", val_res, epoch+1)
+
         #results.plot(x='epoch', y=['train_loss', 'val_loss'],
         #             title='Loss', ylabel='loss')
         #results.plot(x='epoch', y=['train_error1', 'val_error1'],

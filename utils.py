@@ -158,3 +158,17 @@ def accuracy(output, target, topk=(1,)):
     # kernel_img.add_(-kernel_img.min())
     # kernel_img.mul_(255 / kernel_img.max())
     # save_image(kernel_img, 'kernel%s.jpg' % epoch)
+
+def log_result(writer, name, res, step):
+    writer.add_scalar("{}/loss".format(name),           res['loss'],           step)
+    writer.add_scalar("{}/acc_perc".format(name),       res['accuracy'],       step)
+    writer.add_scalar("{}/err_perc".format(name), 100. - res['accuracy'],      step)
+
+def adjust_learning_rate(optimizer, lr):
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+    return lr
+
+# Learning rate schedule
+def lr_schedule(lr, epoch, total_epochs, start_epoch=0):
+    return lr
