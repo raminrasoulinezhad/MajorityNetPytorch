@@ -99,7 +99,7 @@ class Maj3(nn.Module):
         #stdv = 1.0 / math.sqrt(self.state_size)
         for weight in self.parameters():
             #weight.data.uniform_(-stdv, +stdv)
-            weight.data = torch.randint(0, 2 , weight.data.shape, dtype=torch.float).mul_(2.0).add_(-1) # device=cuda_device,
+            weight.data = torch.rand(weight.data.shape, dtype=torch.float).mul_(2.0).add_(-1) # device=cuda_device,
             #weight.data = torch.ones(weight.data.shape, device=cuda_device, dtype=torch.float)
 
     def forward(self, input):

@@ -1,4 +1,4 @@
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Ramins sources:
 //		1- to shrink memory footprints:
 //			-- https://pytorch.org/cppdocs/api/program_listing_file_torch_csrc_api_include_torch_types.h.html?highlight=kfloat
@@ -17,14 +17,11 @@
 //			-- https://github.com/itayhubara/BinaryNet.pytorch
 //		7- Cuda Toturial
 //			-- https://pytorch.org/tutorials/advanced/cpp_extension.html
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <torch/extension.h>
-
 #include <cuda.h>
 #include <cuda_runtime.h>
-
 #include <vector>
 
 
@@ -32,7 +29,6 @@
 //////////////////////////////////////////////////////////////////////////////
 // bare CUDA functions
 //////////////////////////////////////////////////////////////////////////////
-
 
 namespace {
 
@@ -51,11 +47,7 @@ __global__ void maj3_cuda_forward_kernel(
 	const int w = threadIdx.x;
 	const int h = threadIdx.y;
 
-	const int b_size = input_paded.size(0);
-	const int w_in_size = input_paded.size(1);
-	const int h_in_size = input_paded.size(2);
 	const int c_in_size = input_paded.size(3);
-	const int c_out_size = weights_padded.size(0);
 	const int k_w_size = weights_padded.size(1);
 	const int k_h_size = weights_padded.size(2);
 
@@ -72,13 +64,7 @@ __global__ void maj3_cuda_forward_kernel(
   				pop = pop +1;
   			}
 
-  			if (temp > 1.0){
-  				inter[b][w][h][j][i][c] = 0;
-  			}
-  			else if (temp < -1.0) {
-  				inter[b][w][h][j][i][c] = 0;
-  			}
-  			else {
+  			if (abs(temp) < 2.0){
   				inter[b][w][h][j][i][c] = 1;
   			}
   		}
@@ -105,9 +91,7 @@ __global__ void maj3_cuda_backward_kernel_d_input(
 
   	const int c_out_size = weights.size(0);
   	const int k_w_size = weights.size(1);
-  	const int k_h_size = weights.size(2);
-  	const int c_in_size = weights.size(3);
-  	
+  	const int k_h_size = weights.size(2);  	
 
   	auto temp = 0.0;
   	int i, j, k;
@@ -120,17 +104,14 @@ __global__ void maj3_cuda_backward_kernel_d_input(
   				// inter indexing: inter[b][w_out][h_out][kh][c_in][c_out]
 
   				auto temp_d_output = d_output_padded[b][w_in+i][h_in+j][k] * David * inter_padded[b][w_in+i][h_in+j][j][c_in][k];
-  				// auto temp_d_output = d_output_padded[b][w_in+i][h_in+j][k];
   				auto temp_weight = weights[k][k_w_size-i-1][k_h_size-j-1][c_in];
   				temp = temp + temp_d_output * temp_weight;  								
   			}
   			
   		}
   	}
-  	
   	d_input[b][w_in][h_in][c_in] = temp;
 }
-
 
 
 template <typename scalar_t>
@@ -142,55 +123,36 @@ __global__ void maj3_cuda_backward_kernel_d_weights(
 
     const auto David = 2.25;
 
-  	const int c_out	= blockIdx.y;
-  	const int k_w 	= threadIdx.x;
-  	const int k_h 	= threadIdx.y;
-  	const int c_in 	= blockIdx.x;
+  	const int c_in	= blockIdx.x;
+  	const int k_w	= blockIdx.y;
+  	const int k_h	= blockIdx.z;
+  	const int c_out  = threadIdx.x;  	
 
   	const int b_size = d_output.size(0);
   	const int w_out_size = d_output.size(1);
-  	const int h_out_size = d_output.size(2);
-  	const int c_out_size = d_output.size(3);
-  	
+  	const int h_out_size = d_output.size(2);  	
 
   	auto temp = 0.0;
   	int i, j, k;
  	for (i = 0; i < w_out_size; i = i + 1){
 		for (j = 0; j < h_out_size; j = j + 1){
   			for (k = 0; k < b_size; k = k + 1){
-
-  				// inter indexing: inter[b][w_out][h_out][kh][c_in][c_out]
-  				
+  				// inter indexing: inter[b][w_out][h_out][kh][c_in][c_out]			
   				auto temp_d_output = d_output[k][i][j][c_out] * David * inter[k][i][j][k_h][c_in][c_out];
-  				// auto temp_d_output = d_output[k][i][j][c_out];
-
   				auto temp_input = input_padded[k][i+k_w][j+k_h][c_in];
   				temp = temp + temp_d_output * temp_input;
   			}
   			
   		}
   	}
-  	
   	d_weights[c_out][k_w][k_h][c_in] = temp;
 }
 
 
-
-
-
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
-
-
-
-
-
-
-
-
-
 
 
 template <typename scalar_t>
@@ -206,11 +168,7 @@ __global__ void maj3_cuda_forward_kernel_NBP(
 	const int w = threadIdx.x;
 	const int h = threadIdx.y;
 
-	const int b_size = input_paded.size(0);
-	const int w_in_size = input_paded.size(1);
-	const int h_in_size = input_paded.size(2);
 	const int c_in_size = input_paded.size(3);
-	const int c_out_size = weights_padded.size(0);
 	const int k_w_size = weights_padded.size(1);
 	const int k_h_size = weights_padded.size(2);
 
@@ -249,7 +207,6 @@ __global__ void maj3_cuda_backward_kernel_d_input_NBP(
   	const int c_out_size = weights.size(0);
   	const int k_w_size = weights.size(1);
   	const int k_h_size = weights.size(2);
-  	const int c_in_size = weights.size(3);
   	
   	auto temp = 0.0;
   	int i, j, k;
@@ -263,7 +220,6 @@ __global__ void maj3_cuda_backward_kernel_d_input_NBP(
   			
   		}
   	}
-  	
   	d_input[b][w_in][h_in][c_in] = temp;
 }
 
@@ -277,15 +233,14 @@ __global__ void maj3_cuda_backward_kernel_d_weights_NBP(
 
     const auto David = 2.25;
 
-  	const int c_out	= blockIdx.y;
-  	const int k_w 	= threadIdx.x;
-  	const int k_h 	= threadIdx.y;
-  	const int c_in 	= blockIdx.x;
+  	const int c_in	= blockIdx.x;
+  	const int k_w	= blockIdx.y;
+  	const int k_h	= blockIdx.z;
+  	const int c_out	= threadIdx.x;  
 
   	const int b_size = d_output.size(0);
   	const int w_out_size = d_output.size(1);
   	const int h_out_size = d_output.size(2);
-  	const int c_out_size = d_output.size(3);
   	
   	auto temp = 0.0;
   	int i, j, k;
@@ -298,7 +253,6 @@ __global__ void maj3_cuda_backward_kernel_d_weights_NBP(
   			}
   		}
   	}
-  	
   	d_weights[c_out][k_w][k_h][c_in] = temp;
 }
 
@@ -394,7 +348,6 @@ std::vector<torch::Tensor> maj3_cuda_backward(
 
 	const dim3 blocks_d_input(c_in, b, 1);
 	const dim3 threads_d_input(w_out, h_out, 1);
-
 	AT_DISPATCH_FLOATING_TYPES(d_output_padded.type(), "maj3_backward_cuda", ([&] {maj3_cuda_backward_kernel_d_input<scalar_t><<<blocks_d_input, threads_d_input>>>(
 	    d_output_padded.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
 	    weights.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
@@ -402,8 +355,9 @@ std::vector<torch::Tensor> maj3_cuda_backward(
 	    d_input.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>());
 	}));
 
-	const dim3 blocks_d_weights(c_in, c_out, 1);
-	const dim3 threads_d_weights(k_w, k_h, 1);
+
+	const dim3 blocks_d_weights(c_in, k_w, k_h);
+	const dim3 threads_d_weights(c_out, 1, 1);
 	AT_DISPATCH_FLOATING_TYPES(d_output_padded.type(), "maj3_backward_cuda", ([&] {maj3_cuda_backward_kernel_d_weights<scalar_t><<<blocks_d_weights, threads_d_weights>>>(
 	    d_output.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
 	    input_padded.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
@@ -480,8 +434,8 @@ std::vector<torch::Tensor> maj3_cuda_backward_NBP(
 	    d_input.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>());
 	}));
 
-	const dim3 blocks_d_weights(c_in, c_out, 1);
-	const dim3 threads_d_weights(k_w, k_h, 1);
+	const dim3 blocks_d_weights(c_in, k_w, k_h);
+	const dim3 threads_d_weights(c_out, 1, 1);
 	AT_DISPATCH_FLOATING_TYPES(d_output_padded.type(), "maj3_backward_cuda", ([&] {maj3_cuda_backward_kernel_d_weights_NBP<scalar_t><<<blocks_d_weights, threads_d_weights>>>(
 	    d_output.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
 	    input_padded.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
