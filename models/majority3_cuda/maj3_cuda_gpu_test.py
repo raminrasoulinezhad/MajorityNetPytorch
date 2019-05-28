@@ -16,8 +16,11 @@ import maj3_cuda
 #maj3_cuda = load(name='maj3', sources=['maj3_cuda.cpp', 'maj3_cuda_kernel.cu'])
 #############################################
 
-
-
+def Binarize(tensor,quant_mode='det'):
+    if quant_mode=='det':
+        return tensor.sign()
+    else:
+        return tensor.add_(1).div_(2).add_(torch.rand(tensor.size()).add(-0.5)).clamp_(0,1).round().mul_(2).add_(-1)
 
 class maj3Function(Function):
     @staticmethod
@@ -92,23 +95,31 @@ class Maj3(nn.Module):
         self.c_in = c_in
         self.c_out = c_out
 
-        self.weights = torch.nn.Parameter(torch.empty(c_out, self.k_w , self.k_h , c_in))
+        self.weight = torch.nn.Parameter(torch.empty(c_out, self.k_w , self.k_h , c_in))
         self.reset_parameters()
 
     def reset_parameters(self):
-        #stdv = 1.0 / math.sqrt(self.state_size)
+        stdv = 1.0 / math.sqrt(self.c_in*self.k_w*self.k_h)
         for weight in self.parameters():
-            #weight.data.uniform_(-stdv, +stdv)
-            weight.data = torch.rand(weight.data.shape, dtype=torch.float).mul_(2.0).add_(-1) # device=cuda_device,
+            weight.data.uniform_(-stdv, +stdv)
+            #weight.data = torch.rand(weight.data.shape, dtype=torch.float).mul_(2.0).add_(-1) # device=cuda_device,
             #weight.data = torch.ones(weight.data.shape, device=cuda_device, dtype=torch.float)
 
     def forward(self, input):
         # it sems that quantization should be applied on both weights and inputs here
+        if input.size(1) != 3:
+            input.data = Binarize(input.data)
+        if not hasattr(self.weight,'org'):
+            self.weight.org=self.weight.data.clone()
         
+        self.weight.data=Binarize(self.weight.org)
+
+        #print(input.data, input.data.shape)
+        #print(self.weight.data, self.weight.shape)
         if (self.backprop == 'normalConv'):
-        	return maj3Function_NBP.apply(input, self.weights)
+        	return maj3Function_NBP.apply(input, self.weight)
         else:
-        	return maj3Function.apply(input, self.weights)
+        	return maj3Function.apply(input, self.weight)
 
 
 """
