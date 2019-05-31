@@ -19,10 +19,13 @@
 //			-- https://pytorch.org/tutorials/advanced/cpp_extension.html
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
 #include <torch/extension.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <vector>
+
+
 
 //////////////////////////////////////////////////////////////////////////////
 // bare CUDA functions
@@ -154,7 +157,7 @@ __global__ void maj3_cuda_backward_kernel_d_weights(
 
 
 template <typename scalar_t>
-__global__ void maj3_cuda_forward_kernel_NBP_v1(
+__global__ void maj3_cuda_forward_kernel_NBP(
     const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> input_paded,
     const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> weights_padded,
     torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> output){
@@ -171,150 +174,7 @@ __global__ void maj3_cuda_forward_kernel_NBP_v1(
 	const int k_h_size = weights_padded.size(2);
 
   	auto pop = 0.0;
-  	int i, j, k;
- 	for (i = 0; i < c_in_size; i = i + 1){
-		for (j = 0; j < k_h_size; j = j + 1){
-  			int temp = 0;
-  			for (k = 0; k < k_w_size; k = k + 1){
-  				temp = temp + input_paded[b][w+k][h+j][i] * weights_padded[c][k][j][i];
-  			}
-  			if (temp > 0){
-  				pop = pop +1;
-  			}
-  		}
-  	}
-  	output[b][w][h][c] = (2 * pop - (k_h_size * c_in_size)) * David;
-}
 
-
-template <typename scalar_t>
-__global__ void maj3_cuda_forward_kernel_NBP_v2(
-    const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> input_paded,
-    const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> weights_padded,
-    torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> output){
-
-	const auto David = 2.25;
-
-	const int c = blockIdx.x;
-	const int b = blockIdx.y;
-	const int w = threadIdx.x;
-	const int h = threadIdx.y;
-
-	const int c_in_size = input_paded.size(3);
-	const int k_w_size = weights_padded.size(1);
-	const int k_h_size = weights_padded.size(2);
-
-	//const int buffer_size = c_in_size * k_h_size * k_w_size;
-	//const int buffer_size = 128 * 3 * 3;
-	//scalar_t *input_Reg = new scalar_t [buffer_size];
-	//scalar_t *weight_Reg = new scalar_t [buffer_size];
-
-	scalar_t input_Reg [128*3*3];
-	__shared__ scalar_t weight_Reg [128*3*3];	
-	
-	int i, j, k;
-	for (k = 0; k < k_w_size; k = k + 1){
-		for (j = 0; j < k_h_size; j = j + 1){
-  			for (i = 0; i < c_in_size; i = i + 1){
-  				int index = (i * k_h_size * k_w_size) + (j * k_w_size) + k;
-  				//input_Reg[index]  = input_paded[b][w+k][h+j][i];
-  				if ((w==0)&(h==0))
-  					weight_Reg[index] = weights_padded[c][k][j][i];
-  			}
-  		}
-  	}
-  	__syncthreads();
-
-  	auto pop = 0.0;
- 	for (i = 0; i < (c_in_size); i = i + 1){
- 		for (j = 0; j < k_h_size; j = j + 1){
-			int temp = 0;
-			for (k = 0; k < k_w_size; k = k + 1){
-
-				int index = (i * k_h_size * k_w_size) + (j * k_w_size) + k;
-				temp = temp + input_paded[b][w+k][h+j][i] * weight_Reg[index];
-
-				//temp = temp + input_Reg[i * k_w_size + k] * weight_Reg[i * k_w_size + k];
-
-				///auto temp1 = input_Reg[0];
-				///auto temp2 = weight_Reg[0];
-				///temp = temp + temp1 * temp2;
-			}
-			if (temp > 0){
-				pop = pop +1;
-			}
-		}
-  	}
-
-  	//delete input_Reg;
-  	//delete weight_Reg;
-  	
-  	output[b][w][h][c] = (2 * pop - (k_h_size * c_in_size)) * David;
-}
-
-
-template <typename scalar_t>
-__global__ void maj3_cuda_forward_kernel_NBP_v3(
-    const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> input_paded,
-    const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> weights_padded,
-    torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> output){
-
-	const auto David = 2.25;
-
-	// TO CALL
-	//const dim3 blocks(w_out, h_out, b);
-	//const dim3 threads(c_out, 1, 1);
-	const int c = threadIdx.x;
-	const int w = blockIdx.x;
-	const int h = blockIdx.y;
-	const int b = blockIdx.z;
-
-	const int c_in_size = input_paded.size(3);
-	const int k_w_size = weights_padded.size(1);
-	const int k_h_size = weights_padded.size(2);
-
-  	auto pop = 0.0;
-  	int i, j, k;
- 	for (i = 0; i < c_in_size; i = i + 1){
-		for (j = 0; j < k_h_size; j = j + 1){
-  			int temp = 0;
-  			for (k = 0; k < k_w_size; k = k + 1){
-  				temp = temp + input_paded[b][w+k][h+j][i] * weights_padded[c][k][j][i];
-  			}
-  			if (temp > 0){
-  				pop = pop +1;
-  			}
-  		}
-  	}
-  	output[b][w][h][c] = (2 * pop - (k_h_size * c_in_size)) * David;
-}
-
-
-template <typename scalar_t>
-__global__ void maj3_cuda_forward_kernel_NBP_v4(
-    const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> input_paded,
-    const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> weights_padded,
-    torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> output){
-
-	const auto David = 2.25;
-
-	// TO CALL
-	//const int block_divider = 1024/c_out;
-	//const dim3 blocks(w_out, h_out, b/block_divider);
-	//const dim3 threads(c_out, block_divider, 1);
-
-	const int c = threadIdx.x;
-	const int b_t = threadIdx.y;
-	const int w = blockIdx.x;
-	const int h = blockIdx.y;
-	const int b_b = blockIdx.z;
-	const int b = b_b * blockDim.y + b_t;
-
-	const int c_in_size = input_paded.size(3);
-	const int k_w_size = weights_padded.size(1);
-	const int k_h_size = weights_padded.size(2);
-
-  	auto pop = 0.0;
   	int i, j, k;
  	for (i = 0; i < c_in_size; i = i + 1){
 		for (j = 0; j < k_h_size; j = j + 1){
@@ -533,17 +393,9 @@ std::vector<torch::Tensor> maj3_cuda_forward_NBP(
 	auto input_paded = at::constant_pad_nd(input, {0,0,1,1,1,1,0,0}, -1.0);   
 	auto output = torch::zeros({b, w_out, h_out, c_out}, torch::CUDA(at::kFloat));
 
-	//const dim3 blocks(c_out, b, 1);
-	//const dim3 threads(w_out, h_out, 1);
-	//AT_DISPATCH_FLOATING_TYPES(input_paded.type(), "maj3_forward_cuda", ([&] {maj3_cuda_forward_kernel_NBP_v1<scalar_t><<<blocks, threads>>>(
-	//    input_paded.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
-	//    weights.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
-	//    output.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>());
-	//}));
-
-	const dim3 blocks(w_out, h_out, b);
-	const dim3 threads(c_out, 1, 1);
-	AT_DISPATCH_FLOATING_TYPES(input_paded.type(), "maj3_forward_cuda", ([&] {maj3_cuda_forward_kernel_NBP_v3<scalar_t><<<blocks, threads>>>(
+	const dim3 blocks(c_out, b, 1);
+	const dim3 threads(w_out, h_out, 1);
+	AT_DISPATCH_FLOATING_TYPES(input_paded.type(), "maj3_forward_cuda", ([&] {maj3_cuda_forward_kernel_NBP<scalar_t><<<blocks, threads>>>(
 	    input_paded.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
 	    weights.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
 	    output.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>());

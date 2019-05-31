@@ -5,13 +5,11 @@ import torch
 import time
 import torch.optim as optim
 
-torch.manual_seed(46)
-
 ######### Loading the new command #########
-# Static loading - by running: # python setup.py install
+## Static loading - by running: # python setup.py install
 import maj3_cuda
 
-# Dynamic loading and compiling 
+## Dynamic loading and compiling 
 #from torch.utils.cpp_extension import load
 #maj3_cuda = load(name='maj3', sources=['maj3_cuda.cpp', 'maj3_cuda_kernel.cu'])
 #############################################
@@ -25,44 +23,18 @@ def Binarize(tensor,quant_mode='det'):
 class maj3Function(Function):
     @staticmethod
     def forward(ctx, input, weights):
-    #def forward(ctx, input, weights, bias, old_h, old_cell):
-        
         input = input.transpose(1,2).transpose(2,3)
         outputs = maj3_cuda.forward(input.contiguous(), weights)
-        #outputs = maj3_cuda.forward(input, weights, bias, old_h, old_cell)
-
-        #print(outputs[0])
         output, inter = outputs
-        #new_h, new_cell = outputs[:2]
-
-        #variables = weights + inter
-        ##variables = outputs[1:] + [weights]
-
         ctx.save_for_backward(input.contiguous(), weights, inter)
-        #ctx.save_for_backward(*variables)
-        ##ctx.save_for_backward(*variables)
-
-        output = output.transpose(2,3).transpose(1,2)
-
-        return output
-        #return new_h, new_cell
+        return output.transpose(2,3).transpose(1,2)
 
     @staticmethod
     def backward(ctx, grad_output):
-    #def backward(ctx, grad_h, grad_cell):
         grad_output = grad_output.transpose(1,2).transpose(2,3)
-        #input, weights, inter = ctx.saved_tensors
-        #print('d_out', grad_output)
         outputs = maj3_cuda.backward(grad_output.contiguous(), *ctx.saved_variables)
-        
-        #outputs = maj3_cuda.backward(grad_h.contiguous(), grad_cell.contiguous(), *ctx.saved_variables)
-		
         d_input, d_weights = outputs
-        #d_old_h, d_input, d_weights, d_bias, d_old_cell, d_gates = outputs
-        #print ('d_in', d_input, 'd_weights', d_weights)
-        
         return d_input.transpose(2,3).transpose(1,2), d_weights
-        #return d_input, d_weights, d_bias, d_old_h, d_old_cell
 
 class maj3Function_NBP(Function):
     @staticmethod
@@ -70,8 +42,7 @@ class maj3Function_NBP(Function):
         input = input.transpose(1,2).transpose(2,3)
         output = maj3_cuda.forward_NBP(input.contiguous(), weights)
         ctx.save_for_backward(input.contiguous(), weights)
-        imm = output[0].transpose(2,3).transpose(1,2)
-        return imm
+        return output[0].transpose(2,3).transpose(1,2)
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -87,26 +58,21 @@ class Maj3(nn.Module):
         
         self.backprop = backprop
 
-        self.k_w = kernel_size
-        self.k_h = kernel_size
-        self.k_w_pad = math.floor(self.k_w/2)
-        self.k_h_pad = math.floor(self.k_h/2)
-        
+        self.kernel_size = kernel_size
+        self.kernel_pad_size = math.floor(self.kernel_size/2)
+    
         self.c_in = c_in
         self.c_out = c_out
 
-        self.weight = torch.nn.Parameter(torch.empty(c_out, self.k_w , self.k_h , c_in))
+        self.weight = torch.nn.Parameter(torch.empty(c_out, kernel_size, kernel_size, c_in))
         self.reset_parameters()
 
     def reset_parameters(self):
-        stdv = 1.0 / math.sqrt(self.c_in*self.k_w*self.k_h)
-        for weight in self.parameters():
-            weight.data.uniform_(-stdv, +stdv)
-            #weight.data = torch.rand(weight.data.shape, dtype=torch.float).mul_(2.0).add_(-1) # device=cuda_device,
-            #weight.data = torch.ones(weight.data.shape, device=cuda_device, dtype=torch.float)
+        stdv = 1.0 / math.sqrt(self.c_in*self.kernel_size*self.kernel_size)
+        for param in self.parameters():
+            param.data.uniform_(-stdv, +stdv)
 
     def forward(self, input):
-        # it sems that quantization should be applied on both weights and inputs here
         if input.size(1) != 3:
             input.data = Binarize(input.data)
         if not hasattr(self.weight,'org'):
@@ -121,7 +87,6 @@ class Maj3(nn.Module):
         else:
         	return maj3Function.apply(input, self.weight)
 
-
 """
 ############################################################
 ############################################################
@@ -131,60 +96,49 @@ def mse_loss(input, target):
 
 ############################################################
 assert torch.cuda.is_available()
-cuda_device = torch.device('cuda:0')  # device object representing GPU
+torch.cuda.set_device(1)
 
-B = 50
-Win = 32
-Hin = 32
-Cin = 128
+layer = 4
+list_Win = [32,16,16,8,8]
+list_Cout = [128,256,256,512,512]
+list_Cin = [128,128,256,256,512]
 
-Cout = 256
-Kh = 3
-Kw = 3
-Khpad = math.floor(Kh/2)
-Kwpad = math.floor(Kw/2)
+B = 64
+kernel_size = 3
 
-X = torch.randint(0, 2 , (B, Win, Hin, Cin), device=cuda_device, dtype=torch.float).mul_(2.0).add_(-1)
-#X = torch.ones((B, Win, Hin, Cin), device=cuda_device, dtype=torch.float) * -1 
+Win = list_Win[layer]
+Hin = Win
+Cin = list_Cin[layer]
+Cout = list_Cout[layer]
+
+X = torch.randint(0, 2 , (B, Cin, Win, Hin), dtype=torch.float).mul_(2.0).add_(-1).cuda()
 ############################################################
-maj3 = Maj3(Cout, Kw, Kh, Cin, backprop='normalConv').to(device=cuda_device)
+maj3 = Maj3(Cin, Cout, kernel_size, backprop='normalConv').cuda()
 
 optimizer = optim.SGD(maj3.parameters(), lr=0.01, momentum=0.9)
 ############################################################
 
-forward = 0
-backward = 0
-iter_counter = 5
-for _ in range(iter_counter):
+forward, backward = 0 , 0
+iter_counter = 10
+for iter in range(iter_counter):
+
     start = time.time()
-    
-    #print(maj3.weights.sum())
-
-    #print('input', X)
-    #print('weights', maj3.weights)
     output = maj3(X)
-    #print('output', output)
-
-    #print(output.max())
-    #print(output.min())
     torch.cuda.synchronize()
     forward += time.time() - start
     
     start = time.time()
-
-    optimizer.zero_grad()
-    
     loss = mse_loss(output, torch.zeros_like(output))
     print (loss)
-    
+    optimizer.zero_grad()
     (loss/100000).backward()
     torch.cuda.synchronize()
-
     optimizer.step()
-    #print(maj3.weights)
-
-    
     backward += time.time() - start
+    
+    print('Forward: {:.3f} us | Backward {:.3f} us'.format(forward * 1e6/(iter+1), backward * 1e6/(iter+1)))
 
 print('Forward: {:.3f} us | Backward {:.3f} us'.format(forward * 1e6/iter_counter, backward * 1e6/iter_counter))
+
 """
+
