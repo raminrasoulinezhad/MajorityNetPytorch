@@ -5,3 +5,6 @@ from .resnet import *
 from .resnet_binary import *
 from .vgg_cifar10_binary import *
 from .vgg_cifar10_maj3 import *
+from .cnv_cifar10_binary import *
+from .cnv_cifar10_maj3 import *
+
