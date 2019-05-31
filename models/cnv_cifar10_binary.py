@@ -1,3 +1,5 @@
+# Source: https://github.com/Xilinx/BNN-PYNQ/blob/master/bnn/src/training/cnv.py
+
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms

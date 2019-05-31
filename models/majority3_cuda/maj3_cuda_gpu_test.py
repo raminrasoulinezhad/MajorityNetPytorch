@@ -21,45 +21,47 @@ def Binarize(tensor,quant_mode='det'):
         return tensor.add_(1).div_(2).add_(torch.rand(tensor.size()).add(-0.5)).clamp_(0,1).round().mul_(2).add_(-1)
 
 class maj3Function(Function):
+
     @staticmethod
-    def forward(ctx, input, weights):
+    def forward(ctx, input, weight, backprop, padding):
         input = input.transpose(1,2).transpose(2,3)
-        outputs = maj3_cuda.forward(input.contiguous(), weights)
-        output, inter = outputs
-        ctx.save_for_backward(input.contiguous(), weights, inter)
+
+        if (backprop == 'normalConv'):
+        	outputs = maj3_cuda.forward_NBP(input.contiguous(), weight)
+        	output = outputs[0]
+        	ctx.save_for_backward(input.contiguous(), weight)
+
+        else:
+        	outputs = maj3_cuda.forward(input.contiguous(), weight)
+        	output, inter = outputs
+        	ctx.save_for_backward(input.contiguous(), weight, inter)
+
+        ctx.backprop = backprop
+        ctx.padding = padding
         return output.transpose(2,3).transpose(1,2)
 
     @staticmethod
     def backward(ctx, grad_output):
         grad_output = grad_output.transpose(1,2).transpose(2,3)
-        outputs = maj3_cuda.backward(grad_output.contiguous(), *ctx.saved_variables)
-        d_input, d_weights = outputs
-        return d_input.transpose(2,3).transpose(1,2), d_weights
+        	
+        if (ctx.backprop == 'normalConv'):
+        	outputs = maj3_cuda.backward_NBP(grad_output.contiguous(), *ctx.saved_variables)
+        else:
+        	outputs = maj3_cuda.backward(grad_output.contiguous(), *ctx.saved_variables)
 
-class maj3Function_NBP(Function):
-    @staticmethod
-    def forward(ctx, input, weights):
-        input = input.transpose(1,2).transpose(2,3)
-        output = maj3_cuda.forward_NBP(input.contiguous(), weights)
-        ctx.save_for_backward(input.contiguous(), weights)
-        return output[0].transpose(2,3).transpose(1,2)
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        grad_output = grad_output.transpose(1,2).transpose(2,3)
-        outputs = maj3_cuda.backward_NBP(grad_output.contiguous(), *ctx.saved_variables)
-        d_input, d_weights = outputs
-        return d_input.transpose(2,3).transpose(1,2), d_weights
+        d_input, d_weight = outputs
+        d_backprop, d_padding = None, None
+        return d_input.transpose(2,3).transpose(1,2), d_weight, d_backprop, d_padding
 
 
 class Maj3(nn.Module):
-    def __init__(self, c_in, c_out, kernel_size=3, bias=False, backprop='majority'):
+    def __init__(self, c_in, c_out, kernel_size=3, bias=False, backprop='majority', padding=1):
         super(Maj3, self).__init__()
         
         self.backprop = backprop
 
         self.kernel_size = kernel_size
-        self.kernel_pad_size = math.floor(self.kernel_size/2)
+        self.padding = math.floor(self.kernel_size/2) * padding
     
         self.c_in = c_in
         self.c_out = c_out
@@ -82,12 +84,9 @@ class Maj3(nn.Module):
 
         #print(input.data, input.data.shape)
         #print(self.weight.data, self.weight.shape)
-        if (self.backprop == 'normalConv'):
-        	return maj3Function_NBP.apply(input, self.weight)
-        else:
-        	return maj3Function.apply(input, self.weight)
+        return maj3Function.apply(input, self.weight, self.backprop, self.padding)
 
-"""
+
 ############################################################
 ############################################################
 ############################################################
@@ -140,5 +139,5 @@ for iter in range(iter_counter):
 
 print('Forward: {:.3f} us | Backward {:.3f} us'.format(forward * 1e6/iter_counter, backward * 1e6/iter_counter))
 
-"""
+
 

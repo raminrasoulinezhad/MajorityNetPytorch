@@ -1,5 +1,12 @@
 ## Quick Start
 
+Requirements:
+```
+virtualenv -p /usr/bin/python3 venv3
+pip install torch torchvision numpy bokeh tensorboardX==1.6
+```
+
+
 For binarized VGG on cifar10, run:
 ```
 python main_binary.py --model vgg_cifar10_binary --save vgg_binary --dataset cifar10

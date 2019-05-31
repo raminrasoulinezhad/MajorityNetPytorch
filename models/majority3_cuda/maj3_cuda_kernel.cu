@@ -533,21 +533,21 @@ std::vector<torch::Tensor> maj3_cuda_forward_NBP(
 	auto input_paded = at::constant_pad_nd(input, {0,0,1,1,1,1,0,0}, -1.0);   
 	auto output = torch::zeros({b, w_out, h_out, c_out}, torch::CUDA(at::kFloat));
 
-	//const dim3 blocks(c_out, b, 1);
-	//const dim3 threads(w_out, h_out, 1);
-	//AT_DISPATCH_FLOATING_TYPES(input_paded.type(), "maj3_forward_cuda", ([&] {maj3_cuda_forward_kernel_NBP_v1<scalar_t><<<blocks, threads>>>(
-	//    input_paded.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
-	//    weights.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
-	//    output.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>());
-	//}));
-
-	const dim3 blocks(w_out, h_out, b);
-	const dim3 threads(c_out, 1, 1);
-	AT_DISPATCH_FLOATING_TYPES(input_paded.type(), "maj3_forward_cuda", ([&] {maj3_cuda_forward_kernel_NBP_v3<scalar_t><<<blocks, threads>>>(
+	const dim3 blocks(c_out, b, 1);
+	const dim3 threads(w_out, h_out, 1);
+	AT_DISPATCH_FLOATING_TYPES(input_paded.type(), "maj3_forward_cuda", ([&] {maj3_cuda_forward_kernel_NBP_v1<scalar_t><<<blocks, threads>>>(
 	    input_paded.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
 	    weights.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
 	    output.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>());
 	}));
+
+	//const dim3 blocks(w_out, h_out, b);
+	//const dim3 threads(c_out, 1, 1);
+	//AT_DISPATCH_FLOATING_TYPES(input_paded.type(), "maj3_forward_cuda", ([&] {maj3_cuda_forward_kernel_NBP_v3<scalar_t><<<blocks, threads>>>(
+	//    input_paded.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
+	//    weights.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>(),
+	//    output.packed_accessor<scalar_t,4,torch::RestrictPtrTraits,size_t>());
+	//}));
 
 	return {output};
 }
