@@ -7,10 +7,10 @@ from .binarized_modules import  BinarizeLinear,BinarizeConv2d
 from .majority3_cuda import * 
 
 ## Points: FINN --> there is no padding
-class CNV_Cifar10_Maj3(nn.Module):
+class CNV_Cifar10_Maj3_pad(nn.Module):
 
     def __init__(self, num_classes=1000, backprop='majority'):
-        super(CNV_Cifar10_Maj3, self).__init__()
+        super(CNV_Cifar10_Maj3_pad, self).__init__()
         self.infl_ratio=1;
 
         self.features = nn.Sequential(
@@ -18,41 +18,36 @@ class CNV_Cifar10_Maj3(nn.Module):
             nn.BatchNorm2d(64*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
-            Maj3(64*self.infl_ratio, 64*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop, padding=0),
-            #BinarizeConv2d(64*self.infl_ratio, 64*self.infl_ratio, kernel_size=3, padding=0, bias=True),
+            Maj3(64*self.infl_ratio, 64*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop, padding=1),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.BatchNorm2d(64*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
 
-            Maj3(64*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop, padding=0),
-            #BinarizeConv2d(64*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, padding=0, bias=True),
+            Maj3(64*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop, padding=1),
             nn.BatchNorm2d(128*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
 
-            Maj3(128*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop, padding=0),
-            #BinarizeConv2d(128*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, padding=0, bias=True),
+            Maj3(128*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop, padding=1),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.BatchNorm2d(128*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
 
-            Maj3(128*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop, padding=0),
-            #BinarizeConv2d(128*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, padding=0, bias=True),
+            Maj3(128*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop, padding=1),
             nn.BatchNorm2d(256*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
 
-            Maj3(256*self.infl_ratio, 256, kernel_size=3, bias=False, backprop=backprop, padding=0),
-            #BinarizeConv2d(256*self.infl_ratio, 256, kernel_size=3, padding=0, bias=True),
+            Maj3(256*self.infl_ratio, 256, kernel_size=3, bias=False, backprop=backprop, padding=1),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.BatchNorm2d(256),
             nn.Hardtanh(inplace=True)
 
         )
         self.classifier = nn.Sequential(
-            BinarizeLinear(256, 512, bias=True),
+            BinarizeLinear(256 * 4 * 4, 512, bias=True),
             nn.BatchNorm1d(512),
             nn.Hardtanh(inplace=True),
             #nn.Dropout(0.5),
@@ -76,13 +71,12 @@ class CNV_Cifar10_Maj3(nn.Module):
 
     def forward(self, x):
         x = self.features(x)
-        x = x.view(-1, 256)
+        x = x.view(-1, 256 * 4 * 4)
         x = self.classifier(x)
         return x
 
 
-def cnv_cifar10_maj3(**kwargs):
+def cnv_cifar10_maj3_pad(**kwargs):
     num_classes = getattr(kwargs,'num_classes', 10)
     backprop = kwargs.get('backprop')
-    return CNV_Cifar10_Maj3(num_classes, backprop)
-
+    return CNV_Cifar10_Maj3_pad(num_classes, backprop)

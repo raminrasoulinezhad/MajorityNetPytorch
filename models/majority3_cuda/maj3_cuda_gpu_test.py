@@ -25,16 +25,20 @@ class maj3Function(Function):
     @staticmethod
     def forward(ctx, input, weight, backprop, padding):
         input = input.transpose(1,2).transpose(2,3)
-
+        
         if (backprop == 'normalConv'):
-        	outputs = maj3_cuda.forward_NBP(input.contiguous(), weight)
+        	if (padding == 0):
+        		outputs = maj3_cuda.forward_NBP_noPad(input.contiguous(), weight, padding.contiguous())
+        	else:
+        		outputs = maj3_cuda.forward_NBP(input.contiguous(), weight, padding.contiguous())
+        	
         	output = outputs[0]
-        	ctx.save_for_backward(input.contiguous(), weight)
+        	ctx.save_for_backward(input.contiguous(), weight, padding.contiguous())
 
         else:
-        	outputs = maj3_cuda.forward(input.contiguous(), weight)
+        	outputs = maj3_cuda.forward(input.contiguous(), weight, padding.contiguous())
         	output, inter = outputs
-        	ctx.save_for_backward(input.contiguous(), weight, inter)
+        	ctx.save_for_backward(input.contiguous(), weight, inter, padding.contiguous())
 
         ctx.backprop = backprop
         ctx.padding = padding
@@ -45,11 +49,14 @@ class maj3Function(Function):
         grad_output = grad_output.transpose(1,2).transpose(2,3)
         	
         if (ctx.backprop == 'normalConv'):
-        	outputs = maj3_cuda.backward_NBP(grad_output.contiguous(), *ctx.saved_variables)
+        	if (ctx.padding == 0):
+        		outputs = maj3_cuda.backward_NBP_noPad(grad_output.contiguous(), *ctx.saved_variables)
+        	else:
+        		outputs = maj3_cuda.backward_NBP(grad_output.contiguous(), *ctx.saved_variables)
         else:
         	outputs = maj3_cuda.backward(grad_output.contiguous(), *ctx.saved_variables)
-
         d_input, d_weight = outputs
+
         d_backprop, d_padding = None, None
         return d_input.transpose(2,3).transpose(1,2), d_weight, d_backprop, d_padding
 
@@ -61,8 +68,10 @@ class Maj3(nn.Module):
         self.backprop = backprop
 
         self.kernel_size = kernel_size
-        self.padding = math.floor(self.kernel_size/2) * padding
-    
+        self.padding = (torch.ones(1).cuda() * math.floor(self.kernel_size/2) * padding).to(torch.int)
+
+        assert not((padding == 0 ) and (not (backprop == 'normalConv'))), "Ramin: backprop=majority & padding=0 is not supported !!"
+
         self.c_in = c_in
         self.c_out = c_out
 
@@ -87,6 +96,8 @@ class Maj3(nn.Module):
         return maj3Function.apply(input, self.weight, self.backprop, self.padding)
 
 
+
+"""
 ############################################################
 ############################################################
 ############################################################
@@ -112,7 +123,7 @@ Cout = list_Cout[layer]
 
 X = torch.randint(0, 2 , (B, Cin, Win, Hin), dtype=torch.float).mul_(2.0).add_(-1).cuda()
 ############################################################
-maj3 = Maj3(Cin, Cout, kernel_size, backprop='normalConv').cuda()
+maj3 = Maj3(Cin, Cout, kernel_size, backprop='normalConv', padding=0).cuda()
 
 optimizer = optim.SGD(maj3.parameters(), lr=0.01, momentum=0.9)
 ############################################################
@@ -122,7 +133,9 @@ iter_counter = 10
 for iter in range(iter_counter):
 
     start = time.time()
+    
     output = maj3(X)
+    
     torch.cuda.synchronize()
     forward += time.time() - start
     
@@ -139,5 +152,5 @@ for iter in range(iter_counter):
 
 print('Forward: {:.3f} us | Backward {:.3f} us'.format(forward * 1e6/iter_counter, backward * 1e6/iter_counter))
 
-
+"""
 
