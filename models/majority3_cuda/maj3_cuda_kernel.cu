@@ -2,6 +2,9 @@
 // Ramins sources:
 //		1- to shrink memory footprints:
 //			-- https://pytorch.org/cppdocs/api/program_listing_file_torch_csrc_api_include_torch_types.h.html?highlight=kfloat
+//			-- https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#um-unified-memory-programming-hd
+//			-- https://jhui.github.io/2017/03/06/CUDA/
+//			-- https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#shared-memory
 //			-- https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/Dispatch.h
 //		2- lunching the cuda kernels:
 //			-- // source : http://www.icl.utk.edu/~mgates3/docs/cuda.html
@@ -17,6 +20,12 @@
 //			-- https://github.com/itayhubara/BinaryNet.pytorch
 //		7- Cuda Toturial
 //			-- https://pytorch.org/tutorials/advanced/cpp_extension.html
+//			-- https://pytorch.org/tutorials/advanced/cpp_extension.html
+//		8- accessing a data in tensor:
+//			-- https://discuss.pytorch.org/t/c-aten-pick-integer-value-from-a-tensor/27840
+//			-- https://pytorch.org/cppdocs/notes/tensor_basics.html
+//			-- https://discuss.pytorch.org/t/basic-tensor-manipulation-in-c/27383
+//			-- 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <torch/extension.h>
