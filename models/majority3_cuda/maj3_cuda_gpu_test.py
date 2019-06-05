@@ -91,8 +91,6 @@ class Maj3(nn.Module):
         
         self.weight.data=Binarize(self.weight.org)
 
-        #print(input.data, input.data.shape)
-        #print(self.weight.data, self.weight.shape)
         return maj3Function.apply(input, self.weight, self.backprop, self.padding)
 
 

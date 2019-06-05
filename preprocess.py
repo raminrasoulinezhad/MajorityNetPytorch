@@ -2,8 +2,14 @@ import torch
 import torchvision.transforms as transforms
 import random
 
-__imagenet_stats = {'mean': [0.485, 0.456, 0.406],
-                   'std': [0.229, 0.224, 0.225]}
+### It is eddited according to the input x to the network by Cifar10 --> input x is now between 1 and -1 which is going to be quantized by 8 bit
+### input_max_ramin, input_min_ramin = 2.64, -2.1179
+### mean_new = ((max+min)/2)*std + mean = 0.26105 * std + mean
+### std_new  = ((max-min)/2)*std        = 2.37895 * std 
+# original values
+#__imagenet_stats = {'mean': [0.485, 0.456, 0.406],'std': [0.229, 0.224, 0.225]}
+# our values
+__imagenet_stats = {'mean': [0.54478045, 0.5144752, 0.46473625],'std': [0.54477955, 0.5328848, 0.53526375]}
 
 __imagenet_pca = {
     'eigval': torch.Tensor([0.2175, 0.0188, 0.0045]),

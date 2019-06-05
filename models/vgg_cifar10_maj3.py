@@ -3,9 +3,7 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 from torch.autograd import Function
 from .binarized_modules import  BinarizeLinear,BinarizeConv2d
-#from .maj3_purepython_gpu_test import Maj3
 from .majority3_cuda import * 
-
 
 class VGG_Cifar10_Maj3(nn.Module):
 
@@ -14,8 +12,7 @@ class VGG_Cifar10_Maj3(nn.Module):
         self.infl_ratio=1;
 
         self.features = nn.Sequential(
-            BinarizeConv2d(3, 128*self.infl_ratio, kernel_size=3, stride=1, padding=1,
-                      bias=True),
+            BinarizeConv2d(3, 128*self.infl_ratio, kernel_size=3, stride=1, padding=1, bias=True),
             nn.BatchNorm2d(128*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
@@ -24,29 +21,25 @@ class VGG_Cifar10_Maj3(nn.Module):
             nn.BatchNorm2d(128*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
-
             Maj3(128*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop),
             nn.BatchNorm2d(256*self.infl_ratio),
             nn.Hardtanh(inplace=True),
-
 
             Maj3(256*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.BatchNorm2d(256*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
-
             Maj3(256*self.infl_ratio, 512*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop),
             nn.BatchNorm2d(512*self.infl_ratio),
             nn.Hardtanh(inplace=True),
-
 
             Maj3(512*self.infl_ratio, 512, kernel_size=3, bias=False, backprop=backprop),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.BatchNorm2d(512),
             nn.Hardtanh(inplace=True)
-
         )
+
         self.classifier = nn.Sequential(
             BinarizeLinear(512 * 4 * 4, 1024, bias=True),
             nn.BatchNorm1d(1024),
