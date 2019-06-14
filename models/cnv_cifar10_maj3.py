@@ -28,19 +28,19 @@ class CNV_Cifar10_Maj3(nn.Module):
             nn.BatchNorm2d(128*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
-            Maj3(128*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop, padding=padding),
-            #BinarizeConv2d(128*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, padding=padding, bias=True),
+            #Maj3(128*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop, padding=padding),
+            BinarizeConv2d(128*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, padding=padding, bias=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.BatchNorm2d(128*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
-            Maj3(128*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop, padding=padding),
-            #BinarizeConv2d(128*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, padding=padding, bias=True),
+            #Maj3(128*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, bias=False, backprop=backprop, padding=padding),
+            BinarizeConv2d(128*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, padding=padding, bias=True),
             nn.BatchNorm2d(256*self.infl_ratio),
             nn.Hardtanh(inplace=True),
 
-            Maj3(256*self.infl_ratio, 256, kernel_size=3, bias=False, backprop=backprop, padding=padding),
-            #BinarizeConv2d(256*self.infl_ratio, 256, kernel_size=3, padding=padding, bias=True),
+            #Maj3(256*self.infl_ratio, 256, kernel_size=3, bias=False, backprop=backprop, padding=padding),
+            BinarizeConv2d(256*self.infl_ratio, 256, kernel_size=3, padding=padding, bias=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.BatchNorm2d(256),
             nn.Hardtanh(inplace=True)
