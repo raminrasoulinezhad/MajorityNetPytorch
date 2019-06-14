@@ -35,3 +35,13 @@ def get_dataset(name, split='train', transform=None,
         return datasets.ImageFolder(root=path,
                                     transform=transform,
                                     target_transform=target_transform)
+
+def get_num_classes(name):
+    if name == 'cifar10':
+        return 10
+    elif name == 'cifar100':
+        return 100
+    elif name == 'imagenet':
+        return 1000
+    else:
+        return 0

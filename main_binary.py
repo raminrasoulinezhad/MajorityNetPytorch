@@ -10,7 +10,7 @@ import torch.optim
 import torch.utils.data
 import models
 from torch.autograd import Variable
-from data import get_dataset
+from data import get_dataset,get_num_classes
 from preprocess import get_transform
 from utils import *
 from datetime import datetime
@@ -85,7 +85,7 @@ def main():
     if args.save is '':
         args.save = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
-    save_name = args.model+"_"+args.majority+"_pad="+str(args.padding)
+    save_name = args.model+"_"+args.majority+"_pad="+str(args.padding)+"_Data="+args.dataset
     save_path = os.path.join(args.results_dir, save_name)
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -119,8 +119,10 @@ def main():
     # create model
     logging.info("creating model %s", args.model)
     model = models.__dict__[args.model]
+    
+    args.num_classes = get_num_classes(args.dataset)
     model_config = {'input_size': args.input_size, 'dataset': args.dataset, 'backprop': args.backprop,
-                    'majority': args.majority, 'padding': args.padding}
+                    'majority': args.majority, 'padding': args.padding, 'num_classes': args.num_classes}
 
     if args.model_config is not '':
         model_config = dict(model_config, **literal_eval(args.model_config))

@@ -11,24 +11,24 @@ Build Majority Cuda:
 cd models/majority_cuda/ && python setup.py install
 ```
 
-For binarized VGG on cifar10, run:
+For binarized VGG on cifar10/100, run:
 ```
-python main_binary.py --model vgg_cifar10_binary --dataset cifar10 --majority BBBBB --padding 1 --gpus=1
-```
-
-For binarized **VGG+maj3** on cifar10, run:
-```
-python main_binary.py --model vgg_cifar10_binary --dataset cifar10 --majority MMMMM --padding 1 --gpus=1
+python main_binary.py --model vgg_binary --dataset cifar10 --majority BBBBB --padding 1 --gpus=1
 ```
 
-For binarized **CNV+maj3** on cifar10, run:
+For binarized **VGG+maj3** on cifar10/100, run:
 ```
-python main_binary.py --model cnv_cifar10_binary --dataset cifar10 --majority MMBBB --padding 0 --gpus=1
+python main_binary.py --model vgg_binary --dataset cifar10 --majority MMMMM --padding 1 --gpus=1
+```
+
+For binarized **CNV+maj3** on cifar10/100, run:
+```
+python main_binary.py --model cnv_binary --dataset cifar10 --majority MMBBB --padding 0 --gpus=1
 ```
 
 For resume
 ```
---resume results/cnv_cifar10_binary_MMBBB_pad=0/model_best.pth.tar 
+--resume results/cnv_binary_MMBBB_pad=0/model_best.pth.tar 
 ```
 
 For MNIST

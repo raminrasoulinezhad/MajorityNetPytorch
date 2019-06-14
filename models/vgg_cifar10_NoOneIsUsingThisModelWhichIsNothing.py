@@ -7,8 +7,7 @@ class AlexNetOWT_BN(nn.Module):
     def __init__(self, num_classes=1000):
         super(AlexNetOWT_BN, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(3, 128, kernel_size=3, stride=1, padding=1,
-                      bias=False),
+            nn.Conv2d(3, 128, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
 

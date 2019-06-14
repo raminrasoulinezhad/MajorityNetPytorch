@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
-import logging
 from torch.autograd import Function
 from .binarized_modules import  BinarizeLinear,BinarizeConv2d
 from .majority3_cuda import * 
@@ -40,30 +39,31 @@ def make_layers(cfg, maj_cfg, padding=0, bias=False, backprop='normalConv'):
     return nn.Sequential(*layers)
 
 
-cfg = ['64','64+M','128','128+M','256','256+M']
+cfg = ['128','128+M','256','256+M','512','512+M']
 
-class CNV_Cifar10(nn.Module):
 
-    def __init__(self, num_classes=1000, majority="MMBBB", backprop='majority', padding=1):
-        super(CNV_Cifar10, self).__init__()
-        #self.infl_ratio=1;
+class VGG_Binary(nn.Module):
+
+    def __init__(self, num_classes=10, majority="MMBBB", backprop='majority', padding=1):
+        super(VGG_Binary, self).__init__()
         self.padding=padding
         assert len(majority)==5, "Majority configuration string must be for 5 layers only"
 
         self.features = make_layers(cfg, majority, padding=self.padding, bias=False, backprop=backprop)
 
-        self.out_features = 256*4*4 if self.padding==1 else 256
-        
+        self.out_features = 512*4*4 if self.padding==1 else 512
+
+
         self.classifier = nn.Sequential(
-            BinarizeLinear(self.out_features, 512, bias=False),
-            nn.BatchNorm1d(512),
+            BinarizeLinear(self.out_features, 1024, bias=True),
+            nn.BatchNorm1d(1024),
             nn.Hardtanh(inplace=True),
             #nn.Dropout(0.5),
-            BinarizeLinear(512, 512, bias=False),
-            nn.BatchNorm1d(512),
+            BinarizeLinear(1024, 1024, bias=True),
+            nn.BatchNorm1d(1024),
             nn.Hardtanh(inplace=True),
             #nn.Dropout(0.5),
-            BinarizeLinear(512, num_classes, bias=False),
+            BinarizeLinear(1024, num_classes, bias=True),
             nn.BatchNorm1d(num_classes, affine=False),
             nn.LogSoftmax()
         )
@@ -83,10 +83,10 @@ class CNV_Cifar10(nn.Module):
         x = self.classifier(x)
         return x
 
-def cnv_cifar10_binary(**kwargs):
-    num_classes = getattr(kwargs,'num_classes', 10)
+
+def vgg_binary(**kwargs):
+    num_classes = kwargs.get('num_classes')
     backprop = kwargs.get('backprop')
     majority = kwargs.get('majority')
     padding = kwargs.get('padding')
-    return CNV_Cifar10(num_classes, majority, backprop, padding)
-
+    return VGG_Binary(num_classes, majority, backprop, padding)
