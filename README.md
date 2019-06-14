@@ -1,9 +1,13 @@
-## Quick Start
 
-Requirements:
+## The repository is ready to do:
+Cifar10/100 --> cnv_binary / vgg_binary
+MNIST --> SFC / LFC
+
+
+## Requirements:
 ```
 virtualenv -p /usr/bin/python3 venv3
-pip install torch torchvision numpy bokeh tensorboardX==1.6
+pip install torch torchvision numpy bokeh tensorboardX==1.6 scipy
 ```
 
 Build Majority Cuda:
@@ -11,6 +15,7 @@ Build Majority Cuda:
 cd models/majority_cuda/ && python setup.py install
 ```
 
+## Quick Start
 For binarized VGG on cifar10/100, run:
 ```
 python main_binary.py --model vgg_binary --dataset cifar10 --majority BBBBB --padding 1 --gpus=1
