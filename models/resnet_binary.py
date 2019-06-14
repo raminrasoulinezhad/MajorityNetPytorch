@@ -73,10 +73,10 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.conv1 = BinarizeConv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = BinarizeConv2d(planes, planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
+        self.conv2 = BinarizeConv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = BinarizeConv2d(planes, planes * 4, kernel_size=1, bias=False)
+        print ('Ramin: planes: ', planes)
         self.bn3 = nn.BatchNorm2d(planes * 4)
         self.tanh = nn.Hardtanh(inplace=True)
         self.downsample = downsample
@@ -94,6 +94,7 @@ class Bottleneck(nn.Module):
         out = self.tanh(out)
 
         out = self.conv3(out)
+        print ('Ramin: out.shape: ', out.shape)
         out = self.bn3(out)
 
         if self.downsample is not None:
@@ -152,8 +153,7 @@ class ResNet(nn.Module):
 
 class ResNet_imagenet(ResNet):
 
-    def __init__(self, num_classes=1000,
-                 block=Bottleneck, layers=[3, 4, 23, 3]):
+    def __init__(self, num_classes=1000, block=Bottleneck, layers=[3, 4, 23, 3]):
         super(ResNet_imagenet, self).__init__()
         self.inplanes = 64
         self.conv1 = BinarizeConv2d(3, 64, kernel_size=7, stride=2, padding=3,
@@ -180,8 +180,7 @@ class ResNet_imagenet(ResNet):
 
 class ResNet_cifar10(ResNet):
 
-    def __init__(self, num_classes=10,
-                 block=BasicBlock, depth=18):
+    def __init__(self, num_classes=10, block=BasicBlock, depth=18):
         super(ResNet_cifar10, self).__init__()
         self.inflate = 5
         self.inplanes = 16*self.inflate
@@ -198,8 +197,9 @@ class ResNet_cifar10(ResNet):
         self.layer4 = lambda x: x
         self.avgpool = nn.AvgPool2d(8)
         self.bn2 = nn.BatchNorm1d(64*self.inflate)
-        self.bn3 = nn.BatchNorm1d(10)
+        self.bn3 = nn.BatchNorm1d(num_classes)
         self.logsoftmax = nn.LogSoftmax()
+        print('Ramin5, num_classes:', num_classes)
         self.fc = BinarizeLinear(64*self.inflate, num_classes)
 
         init_model(self)
@@ -220,8 +220,8 @@ class ResNet_cifar10(ResNet):
 
 
 def resnet_binary(**kwargs):
-    num_classes, depth, dataset = map(
-        kwargs.get, ['num_classes', 'depth', 'dataset'])
+    num_classes, depth, dataset = map(kwargs.get, ['num_classes', 'depth', 'dataset'])
+    
     if dataset == 'imagenet':
         num_classes = num_classes or 1000
         depth = depth or 50
@@ -241,8 +241,7 @@ def resnet_binary(**kwargs):
             return ResNet_imagenet(num_classes=num_classes,
                                    block=Bottleneck, layers=[3, 8, 36, 3])
 
-    elif dataset == 'cifar10':
+    elif ((dataset == 'cifar10') or (dataset == 'cifar100')):
         num_classes = num_classes or 10
         depth = depth or 18
-        return ResNet_cifar10(num_classes=num_classes,
-                              block=BasicBlock, depth=depth)
+        return ResNet_cifar10(num_classes=num_classes, block=BasicBlock, depth=depth)

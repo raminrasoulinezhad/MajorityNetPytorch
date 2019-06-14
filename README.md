@@ -1,7 +1,7 @@
 
 ## The repository is ready to do:
-Cifar10/100 --> cnv_binary / vgg_binary
-MNIST --> SFC / LFC
+# Cifar10/100 --> cnv_binary(BM) / vgg_binary(BM) / resnet_binary(B)
+# MNIST --> SFC / LFC
 
 
 ## Requirements:
