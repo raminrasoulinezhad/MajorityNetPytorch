@@ -1,56 +1,61 @@
-# Source: https://github.com/Xilinx/BNN-PYNQ/blob/master/bnn/src/training/cnv.py
-
-# CNV architecture:
-    # 0- baseline coffe code: https://github.com/Xilinx/FINN/blob/master/FINN/inputs/cnv-w1a1.prototxt
-    # 1- inputs 24bits (8 bit per channel)
-    # 2- there is no Hardtranh block
-    # 3- batch normalization is using momentum=0.05 --> nn.BatchNorm2d(64*self.infl_ratio, momentum=0.95),
-    #       http://graphics.cs.cmu.edu/courses/16-824/2016_spring/slides/caffe_tutorial.pdf
-    # 4- normalization: https://discuss.pytorch.org/t/understanding-transform-normalize/21730
-
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
+import logging
 from torch.autograd import Function
 from .binarized_modules import  BinarizeLinear,BinarizeConv2d
+from .majority3_cuda import * 
 
-class CNV_Cifar10_Binary(nn.Module):
 
-    def __init__(self, num_classes=1000):
-        super(CNV_Cifar10_Binary, self).__init__()
-        self.infl_ratio=1;
+def make_layers(cfg, maj_cfg, padding=0, bias=False, backprop='normalConv'):
+    layers = list()
+    in_channels = 3
+    for i,v in enumerate(cfg):
+        print("layer %d:"%i)
+        mp = (v[-1]=='M')
+        if mp:
+            filters = int(v[:-2])
+        else:
+            filters = int(v[:]) 
+        maj = False if (i==0) else (maj_cfg[i-1]=="M") # first Conv always BNN, then maj_cfg
+        
+        if maj:
+            conv2d = Maj3(in_channels, filters, kernel_size=3, backprop=backprop, padding=padding)
+            print(" maj", in_channels, filters, 3, backprop, padding)
+        else:
+            conv2d = BinarizeConv2d(in_channels, filters, kernel_size=3, padding=padding, bias=bias)
+            print(" bnn", in_channels, filters, 3, padding, bias)
 
-        self.features = nn.Sequential(
-            BinarizeConv2d(3, 64*self.infl_ratio, kernel_size=3, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(64*self.infl_ratio),
-            nn.Hardtanh(inplace=True),
+        if mp:
+            layers += [conv2d, nn.MaxPool2d(kernel_size=2, stride=2)]
+            print(' mp', 3, 2)
+        else:
+            layers += [conv2d]
 
-            BinarizeConv2d(64*self.infl_ratio, 64*self.infl_ratio, kernel_size=3, padding=0, bias=False),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.BatchNorm2d(64*self.infl_ratio),
-            nn.Hardtanh(inplace=True),
+        layers += [nn.BatchNorm2d(filters), nn.Hardtanh(inplace=True)]
+        print(" bn", filters)
+        print(" htanh")
+        in_channels = filters
 
-            BinarizeConv2d(64*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, padding=0, bias=False),
-            nn.BatchNorm2d(128*self.infl_ratio),
-            nn.Hardtanh(inplace=True),
+    return nn.Sequential(*layers)
 
-            BinarizeConv2d(128*self.infl_ratio, 128*self.infl_ratio, kernel_size=3, padding=0, bias=False),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.BatchNorm2d(128*self.infl_ratio),
-            nn.Hardtanh(inplace=True),
 
-            BinarizeConv2d(128*self.infl_ratio, 256*self.infl_ratio, kernel_size=3, padding=0, bias=False),
-            nn.BatchNorm2d(256*self.infl_ratio),
-            nn.Hardtanh(inplace=True),
+cfg = ['64','64+M','128','128+M','256','256+M']
 
-            BinarizeConv2d(256*self.infl_ratio, 256, kernel_size=3, padding=0, bias=False),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.BatchNorm2d(256),
-            nn.Hardtanh(inplace=True)
-        )
+class CNV_Cifar10(nn.Module):
 
+    def __init__(self, num_classes=1000, majority="MMBBB", backprop='majority', padding=1):
+        super(CNV_Cifar10, self).__init__()
+        #self.infl_ratio=1;
+        self.padding=padding
+        assert len(majority)==5, "Majority configuration string must be for 5 layers only"
+
+        self.features = make_layers(cfg, majority, padding=self.padding, bias=False, backprop=backprop)
+
+        self.out_features = 256*4*4 if self.padding==1 else 256
+        
         self.classifier = nn.Sequential(
-            BinarizeLinear(256, 512, bias=False),
+            BinarizeLinear(self.out_features, 512, bias=False),
             nn.BatchNorm1d(512),
             nn.Hardtanh(inplace=True),
             #nn.Dropout(0.5),
@@ -61,9 +66,6 @@ class CNV_Cifar10_Binary(nn.Module):
             BinarizeLinear(512, num_classes, bias=False),
             nn.BatchNorm1d(num_classes, affine=False),
             nn.LogSoftmax()
-        )
-        self.ramin_tester = nn.Sequential(
-            BinarizeConv2d(3, 64, kernel_size=3, stride=1, padding=0, bias=False)
         )
 
         self.regime = {
@@ -76,18 +78,15 @@ class CNV_Cifar10_Binary(nn.Module):
         }
 
     def forward(self, x):
-        #print(x.max())
-        #print(x.min())
-        #print(x[:,0,0,0])
-        #x = self.ramin_tester(x)
-        #print(x[:,0,0,0])
-        #exit()
-
         x = self.features(x)
-        x = x.view(-1, 256)
+        x = x.view(-1, self.out_features)
         x = self.classifier(x)
         return x
 
 def cnv_cifar10_binary(**kwargs):
     num_classes = getattr(kwargs,'num_classes', 10)
-    return CNV_Cifar10_Binary(num_classes)
+    backprop = kwargs.get('backprop')
+    majority = kwargs.get('majority')
+    padding = kwargs.get('padding')
+    return CNV_Cifar10(num_classes, majority, backprop, padding)
+

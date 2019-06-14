@@ -47,12 +47,12 @@ parser.add_argument('--gpus', default='0',
                     help='gpus used for training - e.g 0,1,3')
 parser.add_argument('-j', '--workers', default=8, type=int, metavar='N',
                     help='number of data loading workers (default: 8)')
-parser.add_argument('--epochs', default=2500, type=int, metavar='N',
+parser.add_argument('--epochs', default=200, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=256, type=int,
-                    metavar='N', help='mini-batch size (default: 256)')
+parser.add_argument('-b', '--batch-size', default=50, type=int,
+                    metavar='N', help='mini-batch size (default: 50)')
 parser.add_argument('--optimizer', default='SGD', type=str, metavar='OPT',
                     help='optimizer function used')
 parser.add_argument('--lr', '--learning_rate', default=0.1, type=float,
@@ -67,6 +67,10 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', type=str, metavar='FILE',
                     help='evaluate model FILE on validation set')
+parser.add_argument('--majority', help="majority configuration", 
+                    default="MMBBB")
+parser.add_argument('--padding', type=int, help="padding parameter", 
+                    default=1, choices=[0,1])
 parser.add_argument('--backprop', help="majority back prop mode", 
                     default="normalConv", choices=['normalConv', 'majority'])
 
@@ -80,7 +84,9 @@ def main():
         args.results_dir = '/tmp'
     if args.save is '':
         args.save = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    save_path = os.path.join(args.results_dir, args.save)
+
+    save_name = args.model+"_"+args.majority+"_pad="+str(args.padding)
+    save_path = os.path.join(args.results_dir, save_name)
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     else:
@@ -113,7 +119,8 @@ def main():
     # create model
     logging.info("creating model %s", args.model)
     model = models.__dict__[args.model]
-    model_config = {'input_size': args.input_size, 'dataset': args.dataset, 'backprop': args.backprop}
+    model_config = {'input_size': args.input_size, 'dataset': args.dataset, 'backprop': args.backprop,
+                    'majority': args.majority, 'padding': args.padding}
 
     if args.model_config is not '':
         model_config = dict(model_config, **literal_eval(args.model_config))
