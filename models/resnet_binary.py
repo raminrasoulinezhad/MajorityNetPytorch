@@ -2,18 +2,17 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 import math
 from .binarized_modules import  BinarizeLinear,BinarizeConv2d
+from .majority3_cuda import * 
 
 __all__ = ['resnet_binary']
 
 def Binaryconv3x3(in_planes, out_planes, stride=1):
     "3x3 convolution with padding"
-    return BinarizeConv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=False)
+    return BinarizeConv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
 
 def conv3x3(in_planes, out_planes, stride=1):
     "3x3 convolution with padding"
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=False)
+    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
 
 def init_model(model):
     for m in model.modules():
@@ -28,15 +27,25 @@ def init_model(model):
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None,do_bntan=True):
+    def __init__(self, inplanes, planes, stride=1, downsample=None,do_bntan=True, majority="B", backprop='normalConv'):
         super(BasicBlock, self).__init__()
 
-        self.conv1 = Binaryconv3x3(inplanes, planes, stride)
+        if (majority=="M"):
+            self.conv1 = Maj3(inplanes, planes, kernel_size=3, backprop=backprop, padding=1)
+            if (stride > 1):
+                self.ds = lambda x: torch.nn.functional.interpolate(x, scale_factor=(0.5,0.5))
+            else:
+                self.ds = lambda x: x
+        else:
+            self.conv1 = Binaryconv3x3(inplanes, planes, stride)
+            self.ds = lambda x: x
+
         self.bn1 = nn.BatchNorm2d(planes)
         self.tanh1 = nn.Hardtanh(inplace=True)
+        
         self.conv2 = Binaryconv3x3(planes, planes)
-        self.tanh2 = nn.Hardtanh(inplace=True)
         self.bn2 = nn.BatchNorm2d(planes)
+        self.tanh2 = nn.Hardtanh(inplace=True)
 
         self.downsample = downsample
         self.do_bntan=do_bntan;
@@ -47,6 +56,7 @@ class BasicBlock(nn.Module):
         residual = x.clone()
 
         out = self.conv1(x)
+        out = self.ds(out)
         out = self.bn1(out)
         out = self.tanh1(out)
 
@@ -113,7 +123,7 @@ class ResNet(nn.Module):
     def __init__(self):
         super(ResNet, self).__init__()
 
-    def _make_layer(self, block, planes, blocks, stride=1,do_bntan=True):
+    def _make_layer(self, block, planes, blocks, stride=1, do_bntan=True, majority="B", backprop='normalConvs'):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
@@ -123,11 +133,11 @@ class ResNet(nn.Module):
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
+        layers.append(block(self.inplanes, planes, stride, downsample, majority=majority, backprop=backprop))
         self.inplanes = planes * block.expansion
         for i in range(1, blocks-1):
-            layers.append(block(self.inplanes, planes))
-        layers.append(block(self.inplanes, planes,do_bntan=do_bntan))
+            layers.append(block(self.inplanes, planes, majority=majority, backprop=backprop))
+        layers.append(block(self.inplanes, planes, do_bntan=do_bntan, majority=majority, backprop=backprop))
         return nn.Sequential(*layers)
 
     def forward(self, x):
@@ -178,29 +188,32 @@ class ResNet_imagenet(ResNet):
         }
 
 
-class ResNet_cifar10(ResNet):
+class ResNet_cifar(ResNet):
 
-    def __init__(self, num_classes=10, block=BasicBlock, depth=18):
-        super(ResNet_cifar10, self).__init__()
-        self.inflate = 5
+    def __init__(self, num_classes=10, block=BasicBlock, depth=18, majority="BBB", backprop='normalConv'):
+        super(ResNet_cifar, self).__init__()
+        
+        self.inflate = 2    # 5
+        
         self.inplanes = 16*self.inflate
+
         n = int((depth - 2) / 6)
-        self.conv1 = BinarizeConv2d(3, 16*self.inflate, kernel_size=3, stride=1, padding=1,
-                               bias=False)
+        self.conv1 = BinarizeConv2d(3, 16*self.inflate, kernel_size=3, stride=1, padding=1, bias=False)
         self.maxpool = lambda x: x
         self.bn1 = nn.BatchNorm2d(16*self.inflate)
         self.tanh1 = nn.Hardtanh(inplace=True)
-        self.tanh2 = nn.Hardtanh(inplace=True)
-        self.layer1 = self._make_layer(block, 16*self.inflate, n)
-        self.layer2 = self._make_layer(block, 32*self.inflate, n, stride=2)
-        self.layer3 = self._make_layer(block, 64*self.inflate, n, stride=2,do_bntan=False)
+   
+        self.layer1 = self._make_layer(block, 16*self.inflate, n, majority=majority[0], backprop=backprop)
+        self.layer2 = self._make_layer(block, 32*self.inflate, n, stride=2, majority=majority[1], backprop=backprop)
+        self.layer3 = self._make_layer(block, 64*self.inflate, n, stride=2, do_bntan=False, majority=majority[2], backprop=backprop)
         self.layer4 = lambda x: x
+        
         self.avgpool = nn.AvgPool2d(8)
         self.bn2 = nn.BatchNorm1d(64*self.inflate)
+        self.tanh2 = nn.Hardtanh(inplace=True)
+        self.fc = BinarizeLinear(64*self.inflate, num_classes)
         self.bn3 = nn.BatchNorm1d(num_classes)
         self.logsoftmax = nn.LogSoftmax()
-        print('Ramin5, num_classes:', num_classes)
-        self.fc = BinarizeLinear(64*self.inflate, num_classes)
 
         init_model(self)
         #self.regime = {
@@ -220,8 +233,8 @@ class ResNet_cifar10(ResNet):
 
 
 def resnet_binary(**kwargs):
-    num_classes, depth, dataset = map(kwargs.get, ['num_classes', 'depth', 'dataset'])
-    
+    num_classes, depth, dataset, majority, backprop = map(kwargs.get, ['num_classes', 'depth', 'dataset', 'majority', 'backprop'])
+
     if dataset == 'imagenet':
         num_classes = num_classes or 1000
         depth = depth or 50
@@ -244,4 +257,6 @@ def resnet_binary(**kwargs):
     elif ((dataset == 'cifar10') or (dataset == 'cifar100')):
         num_classes = num_classes or 10
         depth = depth or 18
-        return ResNet_cifar10(num_classes=num_classes, block=BasicBlock, depth=depth)
+        return ResNet_cifar(num_classes=num_classes, block=BasicBlock, depth=depth, majority=majority, backprop=backprop)
+    else:
+        raise Exception('Ramin: resnet_binary is not ready for anydataset rather than Cifar 10/100/imagenet')

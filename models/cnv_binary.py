@@ -6,7 +6,6 @@ from torch.autograd import Function
 from .binarized_modules import  BinarizeLinear,BinarizeConv2d
 from .majority3_cuda import * 
 
-
 def make_layers(cfg, maj_cfg, padding=0, bias=False, backprop='normalConv'):
     layers = list()
     in_channels = 3
@@ -40,7 +39,7 @@ def make_layers(cfg, maj_cfg, padding=0, bias=False, backprop='normalConv'):
     return nn.Sequential(*layers)
 
 
-cfg = ['64','64+M','128','128+M','256','256+M']
+cnv_binary_cfg = ['64','64+M','128','128+M','256','256+M']
 
 class CNV_Binary(nn.Module):
 
@@ -50,7 +49,7 @@ class CNV_Binary(nn.Module):
         self.padding=padding
         assert len(majority)==5, "Majority configuration string must be for 5 layers only"
 
-        self.features = make_layers(cfg, majority, padding=self.padding, bias=False, backprop=backprop)
+        self.features = make_layers(cnv_binary_cfg, majority, padding=self.padding, bias=False, backprop=backprop)
 
         self.out_features = 256*4*4 if self.padding==1 else 256
         
@@ -89,4 +88,3 @@ def cnv_binary(**kwargs):
     majority = kwargs.get('majority')
     padding = kwargs.get('padding')
     return CNV_Binary(num_classes, majority, backprop, padding)
-

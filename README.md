@@ -1,7 +1,7 @@
 
 ## The repository is ready to do:
-# Cifar10/100 --> cnv_binary(BM) / vgg_binary(BM) / resnet_binary(B)
-# MNIST --> SFC / LFC
+* Cifar10/100 --> cnv_binary(BM) / vgg_binary(BM) / resnet_binary(BM)
+* MNIST --> SFC / LFC
 
 
 ## Requirements:
@@ -29,6 +29,12 @@ python main_binary.py --model vgg_binary --dataset cifar10 --majority MMMMM --pa
 For binarized **CNV+maj3** on cifar10/100, run:
 ```
 python main_binary.py --model cnv_binary --dataset cifar10 --majority MMBBB --padding 0 --gpus=1
+```
+
+For binarized **CNV+maj3** on cifar10/100, run:
+```
+python main_binary.py --model resnet_binary --dataset cifar10 --majority BMM --gpus=0 
+
 ```
 
 For resume

@@ -68,12 +68,13 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
 parser.add_argument('-e', '--evaluate', type=str, metavar='FILE',
                     help='evaluate model FILE on validation set')
 parser.add_argument('--majority', help="majority configuration", 
-                    default="MMBBB")
+                    default="BBBBB")
 parser.add_argument('--padding', type=int, help="padding parameter", 
                     default=1, choices=[0,1])
 parser.add_argument('--backprop', help="majority back prop mode", 
                     default="normalConv", choices=['normalConv', 'majority'])
-
+parser.add_argument('--depth', type=int, help="resnet depth (d=18    18/34/50/101/152)", 
+                    default=18, choices=[18,34,50,101,152])
 
 def main():
     global args, best_prec1
@@ -86,6 +87,10 @@ def main():
         args.save = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
     save_name = args.model+"_"+args.majority+"_pad="+str(args.padding)+"_Data="+args.dataset
+    
+    if (args.resume != ''):
+        save_name = save_name + "_resume"
+
     save_path = os.path.join(args.results_dir, save_name)
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -122,7 +127,7 @@ def main():
     
     args.num_classes = get_num_classes(args.dataset)
     model_config = {'input_size': args.input_size, 'dataset': args.dataset, 'backprop': args.backprop,
-                    'majority': args.majority, 'padding': args.padding, 'num_classes': args.num_classes}
+                    'majority': args.majority, 'padding': args.padding, 'num_classes': args.num_classes, 'depth': args.depth}
 
     if args.model_config is not '':
         model_config = dict(model_config, **literal_eval(args.model_config))

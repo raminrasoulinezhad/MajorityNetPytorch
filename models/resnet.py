@@ -189,8 +189,8 @@ class ResNet_cifar10(ResNet):
 
 
 def resnet(**kwargs):
-    num_classes, depth, dataset = map(
-        kwargs.get, ['num_classes', 'depth', 'dataset'])
+    num_classes, depth, dataset = map(kwargs.get, ['num_classes', 'depth', 'dataset'])
+
     if dataset == 'imagenet':
         num_classes = num_classes or 1000
         depth = depth or 50

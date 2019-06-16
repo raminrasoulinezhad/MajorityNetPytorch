@@ -39,8 +39,7 @@ def make_layers(cfg, maj_cfg, padding=0, bias=False, backprop='normalConv'):
     return nn.Sequential(*layers)
 
 
-cfg = ['128','128+M','256','256+M','512','512+M']
-
+vgg_binary_cfg = ['128','128+M','256','256+M','512','512+M']
 
 class VGG_Binary(nn.Module):
 
@@ -49,10 +48,9 @@ class VGG_Binary(nn.Module):
         self.padding=padding
         assert len(majority)==5, "Majority configuration string must be for 5 layers only"
 
-        self.features = make_layers(cfg, majority, padding=self.padding, bias=False, backprop=backprop)
+        self.features = make_layers(vgg_binary_cfg, majority, padding=self.padding, bias=False, backprop=backprop)
 
         self.out_features = 512*4*4 if self.padding==1 else 512
-
 
         self.classifier = nn.Sequential(
             BinarizeLinear(self.out_features, 1024, bias=True),
@@ -82,7 +80,6 @@ class VGG_Binary(nn.Module):
         x = x.view(-1, self.out_features)
         x = self.classifier(x)
         return x
-
 
 def vgg_binary(**kwargs):
     num_classes = kwargs.get('num_classes')

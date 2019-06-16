@@ -55,6 +55,8 @@ def get_dataset(name, split='train', transform=None,
         return datasets.ImageFolder(root=path,
                                     transform=transform,
                                     target_transform=target_transform)
+    else:
+        raise Exception('Ramin: dataset name is wrong/not registered')
 
 
 def get_num_classes(name):
@@ -71,4 +73,4 @@ def get_num_classes(name):
     elif name == 'imagenet':
         return 1000
     else:
-        return 0
+        raise Exception('Ramin: dataset name is wrong/not registered')
