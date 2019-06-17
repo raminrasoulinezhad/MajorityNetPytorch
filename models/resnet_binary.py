@@ -43,7 +43,11 @@ class BasicBlock(nn.Module):
         self.bn1 = nn.BatchNorm2d(planes)
         self.tanh1 = nn.Hardtanh(inplace=True)
         
-        self.conv2 = Binaryconv3x3(planes, planes)
+        if (majority=="M"):
+            self.conv2 = Maj3(planes, planes, kernel_size=3, backprop=backprop, padding=1)
+        else:
+            self.conv2 = Binaryconv3x3(planes, planes)
+
         self.bn2 = nn.BatchNorm2d(planes)
         self.tanh2 = nn.Hardtanh(inplace=True)
 
