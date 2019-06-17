@@ -188,12 +188,12 @@ class ResNet_imagenet(ResNet):
         }
 
 
-class ResNet_cifar(ResNet):
+class ResNet_20(ResNet):
 
-    def __init__(self, num_classes=10, block=BasicBlock, depth=18, majority="BBB", backprop='normalConv'):
-        super(ResNet_cifar, self).__init__()
+    def __init__(self, num_classes=10, block=BasicBlock, depth=20, majority="BBB", backprop='normalConv'):
+        super(ResNet_20, self).__init__()
         
-        self.inflate = 2    # 5
+        self.inflate = 4    # 5
         
         self.inplanes = 16*self.inflate
 
@@ -256,7 +256,7 @@ def resnet_binary(**kwargs):
 
     elif ((dataset == 'cifar10') or (dataset == 'cifar100')):
         num_classes = num_classes or 10
-        depth = depth or 18
-        return ResNet_cifar(num_classes=num_classes, block=BasicBlock, depth=depth, majority=majority, backprop=backprop)
+        depth = 20						# it was depth or 18 (for resnet-20, it must be 20)
+        return ResNet_20(num_classes=num_classes, block=BasicBlock, depth=depth, majority=majority, backprop=backprop)
     else:
         raise Exception('Ramin: resnet_binary is not ready for anydataset rather than Cifar 10/100/imagenet')
