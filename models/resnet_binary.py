@@ -30,7 +30,7 @@ class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1, downsample=None,do_bntan=True, majority="B", backprop='normalConv'):
         super(BasicBlock, self).__init__()
 
-        if (majority=="M"):
+        if (majority == "M"):
             self.conv1 = Maj3(inplanes, planes, kernel_size=3, backprop=backprop, padding=1)
             if (stride > 1):
                 self.ds = lambda x: torch.nn.functional.interpolate(x, scale_factor=(0.5,0.5))
@@ -43,7 +43,7 @@ class BasicBlock(nn.Module):
         self.bn1 = nn.BatchNorm2d(planes)
         self.tanh1 = nn.Hardtanh(inplace=True)
         
-        if (majority=="M"):
+        if (majority == "M"):
             self.conv2 = Maj3(planes, planes, kernel_size=3, backprop=backprop, padding=1)
         else:
             self.conv2 = Binaryconv3x3(planes, planes)
@@ -65,7 +65,6 @@ class BasicBlock(nn.Module):
         out = self.tanh1(out)
 
         out = self.conv2(out)
-
 
         if self.downsample is not None:
             if residual.data.max()>1:
@@ -90,7 +89,6 @@ class Bottleneck(nn.Module):
         self.conv2 = BinarizeConv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = BinarizeConv2d(planes, planes * 4, kernel_size=1, bias=False)
-        print ('Ramin: planes: ', planes)
         self.bn3 = nn.BatchNorm2d(planes * 4)
         self.tanh = nn.Hardtanh(inplace=True)
         self.downsample = downsample
@@ -108,7 +106,6 @@ class Bottleneck(nn.Module):
         out = self.tanh(out)
 
         out = self.conv3(out)
-        print ('Ramin: out.shape: ', out.shape)
         out = self.bn3(out)
 
         if self.downsample is not None:
@@ -131,8 +128,7 @@ class ResNet(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                BinarizeConv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
+                BinarizeConv2d(self.inplanes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 
@@ -170,8 +166,7 @@ class ResNet_imagenet(ResNet):
     def __init__(self, num_classes=1000, block=Bottleneck, layers=[3, 4, 23, 3]):
         super(ResNet_imagenet, self).__init__()
         self.inplanes = 64
-        self.conv1 = BinarizeConv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
+        self.conv1 = BinarizeConv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.tanh = nn.Hardtanh(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -198,8 +193,7 @@ class ResNet_20(ResNet):
         super(ResNet_20, self).__init__()
         
         self.inflate = 4    # 5
-        
-        self.inplanes = 16*self.inflate
+        self.inplanes = 16 * self.inflate
 
         n = int((depth - 2) / 6)
         self.conv1 = BinarizeConv2d(3, 16*self.inflate, kernel_size=3, stride=1, padding=1, bias=False)
@@ -243,20 +237,15 @@ def resnet_binary(**kwargs):
         num_classes = num_classes or 1000
         depth = depth or 50
         if depth == 18:
-            return ResNet_imagenet(num_classes=num_classes,
-                                   block=BasicBlock, layers=[2, 2, 2, 2])
+            return ResNet_imagenet(num_classes=num_classes, block=BasicBlock, layers=[2, 2, 2, 2])
         if depth == 34:
-            return ResNet_imagenet(num_classes=num_classes,
-                                   block=BasicBlock, layers=[3, 4, 6, 3])
+            return ResNet_imagenet(num_classes=num_classes, block=BasicBlock, layers=[3, 4, 6, 3])
         if depth == 50:
-            return ResNet_imagenet(num_classes=num_classes,
-                                   block=Bottleneck, layers=[3, 4, 6, 3])
+            return ResNet_imagenet(num_classes=num_classes, block=Bottleneck, layers=[3, 4, 6, 3])
         if depth == 101:
-            return ResNet_imagenet(num_classes=num_classes,
-                                   block=Bottleneck, layers=[3, 4, 23, 3])
+            return ResNet_imagenet(num_classes=num_classes, block=Bottleneck, layers=[3, 4, 23, 3])
         if depth == 152:
-            return ResNet_imagenet(num_classes=num_classes,
-                                   block=Bottleneck, layers=[3, 8, 36, 3])
+            return ResNet_imagenet(num_classes=num_classes, block=Bottleneck, layers=[3, 8, 36, 3])
 
     elif ((dataset == 'cifar10') or (dataset == 'cifar100')):
         num_classes = num_classes or 10

@@ -88,7 +88,7 @@ def get_transform(name='imagenet', input_size=None,
         else:
             return scale_crop(input_size=input_size,
                               scale_size=scale_size, normalize=normalize)
-    elif 'cifar' in name:
+    elif ('cifar' in name) or ('svhn' == name):
         input_size = input_size or 32
         if augment:
             scale_size = scale_size or 40

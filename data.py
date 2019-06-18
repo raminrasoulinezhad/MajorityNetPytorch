@@ -19,34 +19,41 @@ _dataset_path = {
 
 def get_dataset(name, split='train', transform=None,
                 target_transform=None, download=True):
-    train = (split == 'train')
+
     if name == 'cifar10':
+        split = (split == 'train')
         return datasets.CIFAR10(root=_dataset_path['cifar10'],
-                                train=train,
+                                train=split,
                                 transform=transform,
                                 target_transform=target_transform,
                                 download=download)
     elif name == 'cifar100':
+        split = (split == 'train')
         return datasets.CIFAR100(root=_dataset_path['cifar100'],
-                                 train=train,
+                                 train=split,
                                  transform=transform,
                                  target_transform=target_transform,
                                  download=download)
     elif name == 'stl10':
-        return datasets.CIFAR100(root=_dataset_path['stl10'],
-                                 train=train,
+        if (split == 'val'):
+            split = 'test' 
+        return datasets.STL10(root=_dataset_path['stl10'],
+                                 split=split,
                                  transform=transform,
                                  target_transform=target_transform,
                                  download=download)
     elif name == 'mnist':
-        return datasets.CIFAR100(root=_dataset_path['mnist'],
-                                 train=train,
+        split = (split == 'train')
+        return datasets.MNIST(root=_dataset_path['mnist'],
+                                 train=split,
                                  transform=transform,
                                  target_transform=target_transform,
                                  download=download)
     elif name == 'svhn':
-        return datasets.CIFAR100(root=_dataset_path['svhn'],
-                                 train=train,
+        if (split == 'val'):
+            split = 'test' 
+        return datasets.SVHN(root=_dataset_path['svhn'],
+                                 split=split,
                                  transform=transform,
                                  target_transform=target_transform,
                                  download=download)
