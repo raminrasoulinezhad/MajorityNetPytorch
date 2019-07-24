@@ -3,7 +3,7 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 import logging
 from torch.autograd import Function
-from .binarized_modules import  BinarizeLinear,BinarizeConv2d
+from .binarized_modules import  BinarizeLinear,BinarizeConv2d,FCMaj3
 from .majority3_cuda import * 
 
 def make_layers(cfg, maj_cfg, padding=0, bias=False, backprop='normalConv'):
@@ -15,7 +15,8 @@ def make_layers(cfg, maj_cfg, padding=0, bias=False, backprop='normalConv'):
         if mp:
             filters = int(v[:-2])
         else:
-            filters = int(v[:]) 
+            filters = int(v[:])
+
         maj = False if (i==0) else (maj_cfg[i-1]=="M") # first Conv always BNN, then maj_cfg
         
         if maj:
@@ -40,6 +41,7 @@ def make_layers(cfg, maj_cfg, padding=0, bias=False, backprop='normalConv'):
 
 
 cnv_binary_cfg = ['64','64+M','128','128+M','256','256+M']
+#cnv_binary_cfg = ['64','64+M','128','144+M','256','256+M']
 
 class CNV_Binary(nn.Module):
 
@@ -54,7 +56,8 @@ class CNV_Binary(nn.Module):
         self.out_features = 256*4*4 if self.padding==1 else 256
         
         self.classifier = nn.Sequential(
-            BinarizeLinear(self.out_features, 512, bias=False),
+            #BinarizeLinear(self.out_features, 512, bias=False),###########################
+            FCMaj3(self.out_features+2, 512),###########################
             nn.BatchNorm1d(512),
             nn.Hardtanh(inplace=True),
             #nn.Dropout(0.5),
@@ -79,6 +82,7 @@ class CNV_Binary(nn.Module):
     def forward(self, x):
         x = self.features(x)
         x = x.view(-1, self.out_features)
+        x = torch.nn.functional.pad(x, (1,1), "constant", -1.0) ###########################
         x = self.classifier(x)
         return x
 

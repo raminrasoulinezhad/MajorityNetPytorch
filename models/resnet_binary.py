@@ -1,3 +1,22 @@
+# source ResNet-20:
+## original paper of ResNet"
+###			https://arxiv.org/pdf/1512.03385.pdf
+## picture of ResNet-20:	
+###			https://www.slideshare.net/ThomLane/cifar10-for-dawnbench-wide-resnets-mixup-augmentation-and-super-convergence-with-cyclical-learning-rates
+## ResNet-20-4 (BWN):
+###			paper of Mark D. McDonnell
+###			https://github.com/szagoruyko/binary-wide-resnet
+###			https://github.com/McDonnell-Lab/1-bit-per-weight
+###			https://arxiv.org/pdf/1802.08530.pdf
+## ResNet-20-1 (BNN):
+###			https://arxiv.org/pdf/1902.00460.pdf
+## ResNet/cifar10/100 results:
+###			https://github.com/weiaicunzai/pytorch-cifar100
+###			https://benchmarks.ai/cifar-100
+###			https://rodrigob.github.io/are_we_there_yet/build/classification_datasets_results.html#43494641522d313030
+###			https://github.com/kuangliu/pytorch-cifar
+
+
 import torch.nn as nn
 import torchvision.transforms as transforms
 import math
@@ -43,10 +62,12 @@ class BasicBlock(nn.Module):
         self.bn1 = nn.BatchNorm2d(planes)
         self.tanh1 = nn.Hardtanh(inplace=True)
         
-        if (majority == "M"):
-            self.conv2 = Maj3(planes, planes, kernel_size=3, backprop=backprop, padding=1)
-        else:
-            self.conv2 = Binaryconv3x3(planes, planes)
+        #if (majority == "M"):
+        #    self.conv2 = Maj3(planes, planes, kernel_size=3, backprop=backprop, padding=1)
+        #else:
+        #    self.conv2 = Binaryconv3x3(planes, planes)
+
+        self.conv2 = Binaryconv3x3(planes, planes)
 
         self.bn2 = nn.BatchNorm2d(planes)
         self.tanh2 = nn.Hardtanh(inplace=True)
