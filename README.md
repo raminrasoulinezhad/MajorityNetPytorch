@@ -5,14 +5,20 @@
 
 
 ## Requirements:
+1- creat a new environment using:
 ```
 virtualenv -p /usr/bin/python3 venv3
 pip install torch torchvision numpy bokeh tensorboardX==1.6 scipy
 ```
-
-Build Majority Cuda:
+2- Build Majority Cuda:
 ```
-cd models/majority_cuda/ && python setup.py install
+cd models/majority_cuda/ 
+python setup.py install
+```
+3- Don't forget to check the Dataset directory:
+```
+data.py for main.py: --> _DATASETS_MAIN_PATH = '/home/ramin/Download/Datasets'
+main_mnist.py        --> '../data'
 ```
 
 ## Quick Start
@@ -48,3 +54,4 @@ python main_mnist.py --gpus=1 --majority-enable --network=LFC --epochs=100
 --majority-enable --> True/False flag
 --network=LFC/SFC
 ```
+
