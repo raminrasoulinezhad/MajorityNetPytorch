@@ -5,6 +5,19 @@
 
 
 ## Requirements:
+0- Install CUDA Driver() + CUDA (10.1) + CuDNN (10.1)
+
+Please look at the appendix A
+
+https://askubuntu.com/questions/530043/removing-nvidia-cuda-toolkit-and-installing-new-one
+https://developer.nvidia.com/cuda-downloads
+
+After installation
+```
+export LD_LIBRARY_PATH=/usr/local/cuda-10.1/targets/x86_64-linux/lib/
+``` 
+
+
 1- creat a new environment using:
 ```
 virtualenv -p /usr/bin/python3 venv3
@@ -12,7 +25,7 @@ pip install torch torchvision numpy bokeh tensorboardX==1.6 scipy
 ```
 2- Build Majority Cuda:
 ```
-cd models/majority_cuda/ 
+cd models/majority3_cuda/
 python setup.py install
 ```
 3- Don't forget to check the Dataset directory:
@@ -54,4 +67,35 @@ python main_mnist.py --gpus=1 --majority-enable --network=LFC --epochs=100
 --majority-enable --> True/False flag
 --network=LFC/SFC
 ```
+
+
+# Appendix A
+
+To remove previous verions (if you want):
+
+	https://askubuntu.com/questions/530043/removing-nvidia-cuda-toolkit-and-installing-new-one
+
+To install Driver:
+
+	http://www.askaswiss.com/2019/01/how-to-install-cuda-9-cudnn-7-ubuntu-18-04.html
+
+
+To download CUDA:
+	
+	https://developer.nvidia.com/cuda-downloads
+
+To install CuDNN
+
+	https://docs.nvidia.com/deeplearning/sdk/cudnn-install/index.html
+
+After installation (you should export this library path as well):
+
+	export LD_LIBRARY_PATH=/usr/local/cuda-10.1/targets/x86_64-linux/lib/
+
+
+
+
+
+
+
 
