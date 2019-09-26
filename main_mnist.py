@@ -36,7 +36,10 @@ parser.add_argument('--preprocess', action='store_true', default=False,
                     help='default preprocess (False) or (-1,1) preprocess (True)')
 parser.add_argument('--network', default='SFC',
                     help='default is SFC. it can be LFC also')
+parser.add_argument('--dataset_dir', default='../Datasets/MNIST_main_mnist',
+                    help='default is ../Datasets/MNIST_main_mnist ')
 args = parser.parse_args()
+
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 
 torch.manual_seed(args.seed)
@@ -50,14 +53,14 @@ else:
 
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('../data', train=True, download=True,
+    datasets.MNIST(args.dataset_dir, train=True, download=True,
                    transform=transforms.Compose([
                        transforms.ToTensor(),
                        transforms.Normalize((pre_mean,), (pre_u,))
                    ])),
     batch_size=args.batch_size, shuffle=True, **kwargs)
 test_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('../data', train=False, transform=transforms.Compose([
+    datasets.MNIST(args.dataset_dir, train=False, transform=transforms.Compose([
                        transforms.ToTensor(),
                        transforms.Normalize((pre_mean,), (pre_u,))
                    ])),

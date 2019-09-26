@@ -2,7 +2,8 @@ import os
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 
-_DATASETS_MAIN_PATH = '/home/ramin/Download/Datasets'
+#_DATASETS_MAIN_PATH = '/home/ramin/Download/Datasets'
+_DATASETS_MAIN_PATH = '../Datasets'
 _dataset_path = {
     'cifar10': os.path.join(_DATASETS_MAIN_PATH, 'CIFAR10'),
     'cifar100': os.path.join(_DATASETS_MAIN_PATH, 'CIFAR100'),
