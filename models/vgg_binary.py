@@ -2,9 +2,8 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 from torch.autograd import Function
-from .binarized_modules import  BinarizeLinear,BinarizeConv2d
+from .binarized_modules import  BinarizeLinear,BinarizeConv2d,FCMaj3
 from .majority3_cuda import * 
-
 
 def make_layers(cfg, maj_cfg, padding=0, bias=False, backprop='normalConv'):
     layers = list()
@@ -16,6 +15,7 @@ def make_layers(cfg, maj_cfg, padding=0, bias=False, backprop='normalConv'):
             filters = int(v[:-2])
         else:
             filters = int(v[:]) 
+
         maj = False if (i==0) else (maj_cfg[i-1]=="M") # first Conv always BNN, then maj_cfg
         
         if maj:
@@ -41,19 +41,33 @@ def make_layers(cfg, maj_cfg, padding=0, bias=False, backprop='normalConv'):
 
 vgg_binary_cfg = ['128','128+M','256','256+M','512','512+M']
 
+
 class VGG_Binary(nn.Module):
 
-    def __init__(self, num_classes=10, majority="MMBBB", backprop='majority', padding=1):
+    def __init__(self, num_classes=10, majority="BBBBB", backprop='majority', padding=1):
         super(VGG_Binary, self).__init__()
         self.padding=padding
-        assert len(majority)==5, "Majority configuration string must be for 5 layers only"
 
-        self.features = make_layers(vgg_binary_cfg, majority, padding=self.padding, bias=False, backprop=backprop)
+        assert len(majority)==7, "Majority configuration string must be in this shape  BMBMB+B  (B/M)"
+        self.majority_conv = majority[0:5]
+        self.majority_fc = majority[6]
+
+        self.features = make_layers(vgg_binary_cfg, self.majority_conv, padding=self.padding, bias=False, backprop=backprop)
 
         self.out_features = 512*4*4 if self.padding==1 else 512
+        # 3 can be the majority size. I mean, for majority 3, 5, 7, 9 it should be 3,5,7, and 9 respectively.
+        self.out_features_pad = (3-(self.out_features % 3)) if ((self.out_features % 3 != 0) & (self.majority_fc == 'M')) else 0
 
-        self.classifier = nn.Sequential(
-            BinarizeLinear(self.out_features, 1024, bias=True),
+
+        self.classifier_first_binary = nn.Sequential(
+            BinarizeLinear(self.out_features, 1024, bias=True)
+        )
+
+        self.classifier_first_maj = nn.Sequential(
+            FCMaj3(self.out_features + self.out_features_pad, 1024)
+        )
+
+        self.classifier_second = nn.Sequential(
             nn.BatchNorm1d(1024),
             nn.Hardtanh(inplace=True),
             #nn.Dropout(0.5),
@@ -78,7 +92,18 @@ class VGG_Binary(nn.Module):
     def forward(self, x):
         x = self.features(x)
         x = x.view(-1, self.out_features)
-        x = self.classifier(x)
+
+        if (self.out_features_pad == 2):
+            x = torch.nn.functional.pad(x, (1,1), "constant", -1.0)
+        elif (self.out_features_pad == 1):
+            x = torch.nn.functional.pad(x, (1,0), "constant", -1.0)
+
+        if (self.majority_fc == 'M'):
+            x = self.classifier_first_maj(x)
+        elif (self.majority_fc == 'B'):
+            x = self.classifier_first_binary(x)
+
+        x = self.classifier_second(x)
         return x
 
 def vgg_binary(**kwargs):

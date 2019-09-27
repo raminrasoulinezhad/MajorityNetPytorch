@@ -68,7 +68,7 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
 parser.add_argument('-e', '--evaluate', type=str, metavar='FILE',
                     help='evaluate model FILE on validation set')
 parser.add_argument('--majority', help="majority configuration", 
-                    default="BBBBB")
+                    default="BBBBB+B")
 parser.add_argument('--padding', type=int, help="padding parameter", 
                     default=1, choices=[0,1])
 parser.add_argument('--backprop', help="majority back prop mode", 
