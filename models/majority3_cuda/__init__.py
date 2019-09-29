@@ -1,1 +1,0 @@
-from .maj3_cuda_gpu_test import *

@@ -20,7 +20,7 @@ virtualenv -p /usr/bin/python3 venv3 && pip install torch torchvision numpy boke
 ```
 2- Build Majority Cuda:
 ```
-cd models/majority3_cuda/ && python setup.py install && cd ./../../
+cd models/majority_cuda/ && python setup.py install && cd ./../../
 ```
 3- Don't forget to check the Dataset directory:
 ```

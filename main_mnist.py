@@ -1,4 +1,7 @@
 from __future__ import print_function
+import os
+import time
+from datetime import datetime
 import argparse
 import torch
 import torch.nn as nn
@@ -8,7 +11,7 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 from models.binarized_modules import  BinarizeLinear,BinarizeConv2d
 #from models.binarized_modules import  Binarize,Ternarize,Ternarize2,Ternarize3,Ternarize4,HingeLoss
-from models.binarized_modules import  Binarize,HingeLoss,FCMaj3
+from models.binarized_modules import  Binarize,HingeLoss,Maj3FC,MajFC
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
@@ -31,13 +34,17 @@ parser.add_argument('--gpus', default=1,type=int,
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--majority-enable', action='store_true', default=False,
-                    help='enableing MajorityMPL')
+                    help='enableing MajFC')
+parser.add_argument('--majority_size', default=3,type=int,
+                    help='majority_size used for training - e.g 3,5,7,9')
 parser.add_argument('--preprocess', action='store_true', default=False,
                     help='default preprocess (False) or (-1,1) preprocess (True)')
 parser.add_argument('--network', default='SFC',
                     help='default is SFC. it can be LFC also')
 parser.add_argument('--dataset_dir', default='../Datasets/MNIST_main_mnist',
                     help='default is ../Datasets/MNIST_main_mnist ')
+parser.add_argument('--results_dir', metavar='RESULTS_DIR', default='./results',
+                    help='results dir')
 args = parser.parse_args()
 
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -68,59 +75,66 @@ test_loader = torch.utils.data.DataLoader(
 
 
 class Net(nn.Module):
-    def __init__(self, majority_enable=False, network='SFC'):
+    def __init__(self, majority_enable=False, majority_size=3, network='SFC'):
         super(Net, self).__init__()
 
         self.majority_enable = majority_enable
-        print(majority_enable)
-
+        self.majority_size = majority_size
+        
         self.infl_ratio=1
-        # base = 2048   # the code originally was working with this base
+
         if (network == 'SFC'):
-            if (majority_enable):
-                base = 255
-            else:
-                base = 256
+            base = 256
+            self.base = (base+(majority_size-(base % majority_size))) if ((base % majority_size != 0) & (majority_enable)) else base
+
         elif network == 'LFC':
-            if (majority_enable):
-                base = 1023
-            else:
-                base = 1024
+            base = 1024
+            self.base = (base+(majority_size-(base % majority_size))) if ((base % majority_size != 0) & (majority_enable)) else base
         else: 
             raise Exception('ramin: Choose the network: SFC or LFC by --network tag')
 
+        input_size = 784
+        self.input_size = (input_size+(majority_size-(input_size % majority_size))) if ((input_size % majority_size != 0) & (majority_enable)) else input_size
+        self.majority_pad = ((majority_size-(input_size % majority_size))) if ((input_size % majority_size != 0) & (majority_enable)) else 0        
+
+        print('Majority FCs: ' + str(majority_enable))
+        print('majority_size: '+ str(majority_size))
+        print('majority_pad: ' + str(self.majority_pad))
+        print('base: ' + str(base) + ' ==> ' + str(self.base))
+        print('input_size: '+ str(input_size) + ' ==> ' + str(self.input_size))
+
         if (majority_enable):
-            self.fc1 = FCMaj3(786, base*self.infl_ratio)
+            self.fc1 = MajFC(self.input_size, self.base*self.infl_ratio, majority_size=self.majority_size)
         else:
-            self.fc1 = BinarizeLinear(784, base*self.infl_ratio)
+            self.fc1 = BinarizeLinear(self.input_size, self.base*self.infl_ratio)
         
         self.htanh1 = nn.Hardtanh()
-        self.bn1 = nn.BatchNorm1d(base*self.infl_ratio)
+        self.bn1 = nn.BatchNorm1d(self.base*self.infl_ratio)
         
         if (majority_enable):
-            self.fc2 = FCMaj3(base*self.infl_ratio, base*self.infl_ratio)
+            self.fc2 = MajFC(self.base*self.infl_ratio, self.base*self.infl_ratio, majority_size=self.majority_size)
         else:
-            self.fc2 = BinarizeLinear(base*self.infl_ratio, base*self.infl_ratio)
+            self.fc2 = BinarizeLinear(self.base*self.infl_ratio, self.base*self.infl_ratio)
 
         self.htanh2 = nn.Hardtanh()
-        self.bn2 = nn.BatchNorm1d(base*self.infl_ratio)
+        self.bn2 = nn.BatchNorm1d(self.base*self.infl_ratio)
 
         if (majority_enable):
-            self.fc3 = FCMaj3(base*self.infl_ratio, base*self.infl_ratio)
+            self.fc3 = MajFC(self.base*self.infl_ratio, self.base*self.infl_ratio, majority_size=self.majority_size)
         else:
-            self.fc3 = BinarizeLinear(base*self.infl_ratio, base*self.infl_ratio)
+            self.fc3 = BinarizeLinear(self.base*self.infl_ratio, self.base*self.infl_ratio)
 
         self.htanh3 = nn.Hardtanh()
-        self.bn3 = nn.BatchNorm1d(base*self.infl_ratio)
-        self.fc4 = nn.Linear(base*self.infl_ratio, 10)
-        self.logsoftmax=nn.LogSoftmax()
+        self.bn3 = nn.BatchNorm1d(self.base*self.infl_ratio)
+        self.fc4 = nn.Linear(self.base*self.infl_ratio, 10)
+        self.logsoftmax=nn.LogSoftmax(dim=1)
         self.drop=nn.Dropout(0.5)
 
     def forward(self, x):
         x = x.view(-1, 28*28)
         
         if (self.majority_enable):
-            x = F.pad(x, (1,1), "constant", 1.0)
+            x = F.pad(x, (self.majority_pad,0), "constant", 1.0)
 
         x = self.fc1(x)
         x = self.bn1(x)
@@ -135,7 +149,10 @@ class Net(nn.Module):
         x = self.fc4(x)
         return self.logsoftmax(x)
 
-model = Net(majority_enable=args.majority_enable, network=args.network)
+assert ((args.majority_size % 2) == 1) , 'defined majority_size should be and odd number such as 3,5,7,9'
+assert (args.majority_size > 1) , 'defined majority_size should be and odd number such as 3,5,7,9'
+
+model = Net(majority_enable=args.majority_enable, majority_size=args.majority_size, network=args.network)
 if args.cuda:
     torch.cuda.set_device(args.gpus)	
     model.cuda()
@@ -190,12 +207,44 @@ def test():
 
     return (100. * float(correct) / float(len(test_loader.dataset)))
 
-acc_best = 0.0
-epoch_best = 0
-for epoch in range(1, args.epochs + 1):
-    train(epoch)    
-    acc_recent = test()
-    if (acc_recent > acc_best):
-        acc_best = acc_recent
-        epoch_best = epoch
-    print('\nBest answer: Epoch={}, Accuracy= ({:.2f}%)\n'.format(epoch_best, acc_best))
+
+
+def main():
+
+    if (args.majority_enable):
+        maj_string = 'Maj' + str(args.majority_size)
+    else:
+        maj_string = 'Normal'
+
+    save_name = args.network + "_" + maj_string + "_MNIST_" + 'epoch=' + str(args.epochs)
+    save_path = os.path.join(args.results_dir, save_name)
+
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    else:
+        # append datatime
+        tim = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        overwrite = input ("Directory {} already exists. Would you like to overwrite (y/n): ".format(save_path))
+        if (overwrite == "y"):
+            save_path = save_path
+        else:
+            save_path = save_path+"_{}".format(tim)
+            os.makedirs(save_path)
+
+
+    results_file = open(save_path + "/results.log","w+")
+
+    acc_best = 0.0
+    epoch_best = 0
+    for epoch in range(1, args.epochs + 1):
+        train(epoch)    
+        acc_recent = test()
+        if (acc_recent > acc_best):
+            acc_best = acc_recent
+            epoch_best = epoch
+        print('\nBest answer: Epoch={}, Accuracy= ({:.2f}%)\n'.format(epoch_best, acc_best))
+        results_file.write('Epoch={},Best answer: Epoch={}, Accuracy= ({:.2f}%)\n'.format(epoch, epoch_best, acc_best))
+
+
+if __name__ == '__main__':
+    main()

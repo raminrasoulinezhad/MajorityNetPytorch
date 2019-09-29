@@ -89,8 +89,7 @@ class MajConv(nn.Module):
         return majFunction.apply(input, self.weight, self.backprop, self.padding, self.kernel_size)
 
 
-
-
+'''
 ############################################################
 ############################################################
 ############################################################
@@ -145,5 +144,4 @@ for iter in range(iter_counter):
 
 print('Forward: {:.3f} us | Backward {:.3f} us'.format(forward * 1e6/iter_counter, backward * 1e6/iter_counter))
 
-
-
+'''

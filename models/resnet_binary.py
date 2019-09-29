@@ -21,7 +21,7 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 import math
 from .binarized_modules import  BinarizeLinear,BinarizeConv2d
-from .majority3_cuda import * 
+from .majority_cuda import * 
 
 __all__ = ['resnet_binary']
 
@@ -50,7 +50,7 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__()
 
         if (majority == "M"):
-            self.conv1 = Maj3(inplanes, planes, kernel_size=3, backprop=backprop, padding=1)
+            self.conv1 = MajConv(inplanes, planes, kernel_size=3, backprop=backprop, padding=1)
             if (stride > 1):
                 self.ds = lambda x: torch.nn.functional.interpolate(x, scale_factor=(0.5,0.5))
             else:
@@ -63,7 +63,7 @@ class BasicBlock(nn.Module):
         self.tanh1 = nn.Hardtanh(inplace=True)
         
         #if (majority == "M"):
-        #    self.conv2 = Maj3(planes, planes, kernel_size=3, backprop=backprop, padding=1)
+        #    self.conv2 = MajConv(planes, planes, kernel_size=3, backprop=backprop, padding=1)
         #else:
         #    self.conv2 = Binaryconv3x3(planes, planes)
 
@@ -210,7 +210,7 @@ class ResNet_imagenet(ResNet):
 
 class ResNet_20(ResNet):
 
-    def __init__(self, num_classes=10, block=BasicBlock, depth=20, majority="BBB", backprop='normalConv'):
+    def __init__(self, num_classes=10, block=BasicBlock, depth=20, majority="BBB", backprop='normalConv', optimizer='Adam'):
         super(ResNet_20, self).__init__()
         
         self.inflate = 4    # 5
@@ -232,23 +232,27 @@ class ResNet_20(ResNet):
         self.tanh2 = nn.Hardtanh(inplace=True)
         self.fc = BinarizeLinear(64*self.inflate, num_classes)
         self.bn3 = nn.BatchNorm1d(num_classes)
-        self.logsoftmax = nn.LogSoftmax()
+        self.logsoftmax = nn.LogSoftmax(dim=1)
 
         init_model(self)
-        #self.regime = {
-        #    0: {'optimizer': 'SGD', 'lr': 1e-1,
-        #        'weight_decay': 1e-4, 'momentum': 0.9},
-        #    81: {'lr': 1e-4},
-        #    122: {'lr': 1e-5, 'weight_decay': 0},
-        #    164: {'lr': 1e-6}
-        #}
-        self.regime = {
-            0: {'optimizer': 'Adam', 'lr': 5e-3},
-            101: {'lr': 1e-3},
-            142: {'lr': 5e-4},
-            184: {'lr': 1e-4},
-            220: {'lr': 1e-5}
-        }
+        if (optimizer == 'Adam'):
+            self.regime = {
+                0: {'optimizer': 'Adam', 'lr': 5e-3},
+                101: {'lr': 1e-3},
+                142: {'lr': 5e-4},
+                184: {'lr': 1e-4},
+                220: {'lr': 1e-5}
+            }
+        elif (optimizer == 'SGD'):
+            self.regime = {
+                0: {'optimizer': 'SGD', 'lr': 1e-1, 'weight_decay': 1e-4, 'momentum': 0.9},
+                81: {'lr': 1e-4},
+                122: {'lr': 1e-5, 'weight_decay': 0},
+                164: {'lr': 1e-6}
+            }
+        else:
+            raise Exception('The defined training optimizer is not defined. Please use Adam or SGD rather than: {}'.format(optimizer))
+
 
 
 def resnet_binary(**kwargs):

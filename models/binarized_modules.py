@@ -133,10 +133,10 @@ class MultiQuantizedConv2d_h(nn.Conv2d):
         return out
 
 
-# Pure FC 
-class FCMaj3(nn.Module):
+# Pure Python based FC using Majority-3
+class Maj3FC(nn.Module):
     def __init__(self, c_in, c_out, bias=False):
-        super(FCMaj3, self).__init__()
+        super(Maj3FC, self).__init__()
 
         self.c_in = c_in
         self.c_out = c_out
@@ -163,6 +163,45 @@ class FCMaj3(nn.Module):
 
         c_in_d3 = int(self.c_in/3)
         inter_maj3 = torch.sum(torch.einsum('bj,cj->bcj', input, self.weight).reshape([-1, c_in_d3, 3]), 2).reshape([-1, c_in_d3])
+        out = torch.sum(torch.clamp(inter_maj3, min=-1.0, max=1.0), 1).mul_(2.25).reshape([-1, self.c_out])
+
+        #if not self.bias is None:
+        #    self.bias.org=self.bias.data.clone()
+        #    out += self.bias.view(1, -1).expand_as(out)
+
+        return out
+
+# Pure Python based FC using Majority-n
+class MajFC(nn.Module):
+    def __init__(self, c_in, c_out, majority_size=3, bias=False):
+        super(MajFC, self).__init__()
+
+        self.c_in = c_in
+        self.c_out = c_out
+        self.majority_size = majority_size
+
+        self.weight = torch.nn.Parameter(torch.empty(c_out, c_in))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1.0 / math.sqrt(self.c_out * self.c_in)
+        for param in self.parameters():
+            param.data.uniform_(-stdv, +stdv)
+
+    def forward(self, input):
+        if input.size(1) != 784:
+            input.data = Binarize(input.data)
+        else:
+            input.data = Binarize(input.data)
+            #input.data = Quantize(input.data, numBits=8)
+        
+        if not hasattr(self.weight,'org'):
+            self.weight.org=self.weight.data.clone()
+        
+        self.weight.data=Binarize(self.weight.org)
+
+        c_in_d3 = int(self.c_in/self.majority_size)
+        inter_maj3 = torch.sum(torch.einsum('bj,cj->bcj', input, self.weight).reshape([-1, c_in_d3, self.majority_size]), 2).reshape([-1, c_in_d3])
         out = torch.sum(torch.clamp(inter_maj3, min=-1.0, max=1.0), 1).mul_(2.25).reshape([-1, self.c_out])
 
         #if not self.bias is None:
