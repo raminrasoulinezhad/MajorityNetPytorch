@@ -57,14 +57,18 @@ def pad_random_crop(input_size, scale_size=None, normalize=__imagenet_stats):
 
 def inception_preproccess(input_size, normalize=__imagenet_stats):
     return transforms.Compose([
-        transforms.RandomSizedCrop(input_size),
+        # RandomSizedCrop transform is deprecated in favor of RandomResizedCrop.
+        #transforms.RandomSizedCrop(input_size),
+        transforms.RandomResizedCrop(input_size),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(**normalize)
     ])
 def inception_color_preproccess(input_size, normalize=__imagenet_stats):
     return transforms.Compose([
-        transforms.RandomSizedCrop(input_size),
+        # RandomSizedCrop transform is deprecated in favor of RandomResizedCrop.
+        #transforms.RandomSizedCrop(input_size),
+        transforms.RandomResizedCrop(input_size),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         ColorJitter(

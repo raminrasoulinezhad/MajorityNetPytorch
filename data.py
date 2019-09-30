@@ -2,8 +2,9 @@ import os
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 
-#_DATASETS_MAIN_PATH = '/home/ramin/Download/Datasets'
 _DATASETS_MAIN_PATH = '../Datasets'
+#_DATASETS_MAIN_PATH_IMAGENET = '/opt/datasets/imgnet'
+
 _dataset_path = {
     'cifar10': os.path.join(_DATASETS_MAIN_PATH, 'CIFAR10'),
     'cifar100': os.path.join(_DATASETS_MAIN_PATH, 'CIFAR100'),
@@ -11,10 +12,12 @@ _dataset_path = {
     'mnist': os.path.join(_DATASETS_MAIN_PATH, 'MNIST'),
     'svhn': os.path.join(_DATASETS_MAIN_PATH, 'SVHN'),
     'emnist': os.path.join(_DATASETS_MAIN_PATH, 'EMNIST'),
-    'imagenet': {
-        'train': os.path.join(_DATASETS_MAIN_PATH, 'ImageNet/train'),
-        'val': os.path.join(_DATASETS_MAIN_PATH, 'ImageNet/val')
-    }
+
+    'imagenet': os.path.join(_DATASETS_MAIN_PATH, 'IMAGENET')
+    #'imagenet': {
+    #    'train': os.path.join(_DATASETS_MAIN_PATH, 'ImageNet/train'),
+    #    'val': os.path.join(_DATASETS_MAIN_PATH, 'ImageNet/val')
+    #}
 }
 
 
@@ -59,10 +62,17 @@ def get_dataset(name, split='train', transform=None,
                                  target_transform=target_transform,
                                  download=download)
     elif name == 'imagenet':
-        path = _dataset_path[name][split]
-        return datasets.ImageFolder(root=path,
+        #path = _dataset_path[name][split]
+        #return datasets.ImageFolder(root=path,
+        #                            transform=transform,
+        #                            target_transform=target_transform)
+
+        return datasets.ImageNet(root=_dataset_path['imagenet'], 
+                                    split=split, 
+                                    download=download,
                                     transform=transform,
                                     target_transform=target_transform)
+
     else:
         raise Exception('Ramin: dataset name is wrong/not registered')
 
@@ -81,4 +91,4 @@ def get_num_classes(name):
     elif name == 'imagenet':
         return 1000
     else:
-        raise Exception('Ramin: dataset name is wrong/not registered')
+        raise Exception('dataset name is wrong/not registered')
