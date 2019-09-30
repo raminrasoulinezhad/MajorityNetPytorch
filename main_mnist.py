@@ -35,6 +35,8 @@ parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--majority-enable', action='store_true', default=False,
                     help='enableing MajFC')
+parser.add_argument('--majority-apx', action='store_true', default=False,
+                    help='enableing approximate computation for MajFC')
 parser.add_argument('--majority_size', default=3,type=int,
                     help='majority_size used for training - e.g 3,5,7,9')
 parser.add_argument('--preprocess', action='store_true', default=False,
@@ -75,12 +77,13 @@ test_loader = torch.utils.data.DataLoader(
 
 
 class Net(nn.Module):
-    def __init__(self, majority_enable=False, majority_size=3, network='SFC'):
+    def __init__(self, majority_enable=False, majority_size=3, majority_apx=False, network='SFC'):
         super(Net, self).__init__()
 
         self.majority_enable = majority_enable
         self.majority_size = majority_size
-        
+        self.majority_apx = majority_apx
+
         self.infl_ratio=1
 
         if (network == 'SFC'):
@@ -104,7 +107,7 @@ class Net(nn.Module):
         print('input_size: '+ str(input_size) + ' ==> ' + str(self.input_size))
 
         if (majority_enable):
-            self.fc1 = MajFC(self.input_size, self.base*self.infl_ratio, majority_size=self.majority_size)
+            self.fc1 = MajFC(self.input_size, self.base*self.infl_ratio, majority_size=self.majority_size, majority_apx=self.majority_apx)
         else:
             self.fc1 = BinarizeLinear(self.input_size, self.base*self.infl_ratio)
         
@@ -112,7 +115,7 @@ class Net(nn.Module):
         self.bn1 = nn.BatchNorm1d(self.base*self.infl_ratio)
         
         if (majority_enable):
-            self.fc2 = MajFC(self.base*self.infl_ratio, self.base*self.infl_ratio, majority_size=self.majority_size)
+            self.fc2 = MajFC(self.base*self.infl_ratio, self.base*self.infl_ratio, majority_size=self.majority_size, majority_apx=self.majority_apx)
         else:
             self.fc2 = BinarizeLinear(self.base*self.infl_ratio, self.base*self.infl_ratio)
 
@@ -120,7 +123,7 @@ class Net(nn.Module):
         self.bn2 = nn.BatchNorm1d(self.base*self.infl_ratio)
 
         if (majority_enable):
-            self.fc3 = MajFC(self.base*self.infl_ratio, self.base*self.infl_ratio, majority_size=self.majority_size)
+            self.fc3 = MajFC(self.base*self.infl_ratio, self.base*self.infl_ratio, majority_size=self.majority_size, majority_apx=self.majority_apx)
         else:
             self.fc3 = BinarizeLinear(self.base*self.infl_ratio, self.base*self.infl_ratio)
 
@@ -152,7 +155,7 @@ class Net(nn.Module):
 assert ((args.majority_size % 2) == 1) , 'defined majority_size should be and odd number such as 3,5,7,9'
 assert (args.majority_size > 1) , 'defined majority_size should be and odd number such as 3,5,7,9'
 
-model = Net(majority_enable=args.majority_enable, majority_size=args.majority_size, network=args.network)
+model = Net(majority_enable=args.majority_enable, majority_size=args.majority_size, majority_apx=args.majority_apx , network=args.network)
 if args.cuda:
     torch.cuda.set_device(args.gpus)	
     model.cuda()
@@ -213,6 +216,8 @@ def main():
 
     if (args.majority_enable):
         maj_string = 'Maj' + str(args.majority_size)
+        if (args.majority_apx):
+            maj_string = maj_string + 'apx'
     else:
         maj_string = 'Normal'
 

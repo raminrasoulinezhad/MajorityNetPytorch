@@ -173,12 +173,13 @@ class Maj3FC(nn.Module):
 
 # Pure Python based FC using Majority-n
 class MajFC(nn.Module):
-    def __init__(self, c_in, c_out, majority_size=3, bias=False):
+    def __init__(self, c_in, c_out, majority_size=3, majority_apx=False, bias=False):
         super(MajFC, self).__init__()
 
         self.c_in = c_in
         self.c_out = c_out
         self.majority_size = majority_size
+        self.majority_apx = majority_apx
 
         self.weight = torch.nn.Parameter(torch.empty(c_out, c_in))
         self.reset_parameters()
@@ -200,9 +201,40 @@ class MajFC(nn.Module):
         
         self.weight.data=Binarize(self.weight.org)
 
-        c_in_d3 = int(self.c_in/self.majority_size)
-        inter_maj3 = torch.sum(torch.einsum('bj,cj->bcj', input, self.weight).reshape([-1, c_in_d3, self.majority_size]), 2).reshape([-1, c_in_d3])
-        out = torch.sum(torch.clamp(inter_maj3, min=-1.0, max=1.0), 1).mul_(2.25).reshape([-1, self.c_out])
+        if (self.majority_apx):
+            if (self.majority_size == 3):
+                raise Exception('majority-3 has no approximation computing')
+            elif (self.majority_size == 5):
+                assert (self.c_in % 5 == 0), "C_in is not dividable by 5 in MajFC-5apx layer"
+                c_in_d5 = int(self.c_in/5)
+                inter_chunked = torch.chunk(torch.einsum('bj,cj->bcj', input, self.weight).reshape([-1, c_in_d5, 5]), 2, dim=2)
+                inter_maj3 = torch.clamp(torch.sum(inter_chunked[0].reshape([-1, c_in_d5, 3]), 2).reshape([-1, c_in_d5, 1]), min=-1.0, max=1.0)
+                # 3.75 = 2.25 * (5/3)
+                out = torch.sum(torch.clamp(torch.sum(torch.cat((inter_maj3, inter_chunked[1]), dim=2),2), min=-1.0, max=1.0).reshape([-1, c_in_d5]), 1).mul_(3.75).reshape([-1, self.c_out])
+                
+            elif (self.majority_size == 7):
+                assert (self.c_in % 7 == 0), "C_in is not dividable by 7 in MajFC-5apx layer"
+                c_in_d7 = int(self.c_in/7)
+                inter_chunked = torch.chunk(torch.einsum('bj,cj->bcj', input, self.weight).reshape([-1, c_in_d7, 7]), 3, dim=2)
+
+                inter_maj3_1 = torch.clamp(torch.sum(inter_chunked[0].reshape([-1, c_in_d7, 3]), 2).reshape([-1, c_in_d7, 1]), min=-1.0, max=1.0)
+                inter_maj3_2 = torch.clamp(torch.sum(inter_chunked[1].reshape([-1, c_in_d7, 3]), 2).reshape([-1, c_in_d7, 1]), min=-1.0, max=1.0)
+                # 5.25 = 2.25 * (7/3)
+                out = torch.sum(torch.clamp(torch.sum(torch.cat((inter_maj3_1, inter_maj3_2, inter_chunked[2]), dim=2), 2), min=-1.0, max=1.0).reshape([-1, c_in_d7]), 1).mul_(5.25).reshape([-1, self.c_out])
+
+            elif (self.majority_size == 9):
+                assert (self.c_in % 9 == 0), "C_in is not dividable by 9 in MajFC-9apx layer"
+                c_in_d3 = int(self.c_in/3)
+                c_in_d9 = int(self.c_in/9)
+                inter_maj3 = torch.sum(torch.einsum('bj,cj->bcj', input, self.weight).reshape([-1, c_in_d3, 3]), 2).reshape([-1, c_in_d9, 3])
+                inter_maj9 = torch.sum(torch.clamp(inter_maj3, min=-1.0, max=1.0), 2).reshape([-1, c_in_d9])
+                out = torch.sum(torch.clamp(inter_maj9, min=-1.0, max=1.0), 1).mul_(2.25*3).reshape([-1, self.c_out])
+            else:
+                raise Exception('approximate majority-{} is not supported'.format(self.majority_size))    
+        else:
+            c_in_d3 = int(self.c_in/self.majority_size)
+            inter_maj3 = torch.sum(torch.einsum('bj,cj->bcj', input, self.weight).reshape([-1, c_in_d3, self.majority_size]), 2).reshape([-1, c_in_d3])
+            out = torch.sum(torch.clamp(inter_maj3, min=-1.0, max=1.0), 1).mul_(2.25).reshape([-1, self.c_out])
 
         #if not self.bias is None:
         #    self.bias.org=self.bias.data.clone()

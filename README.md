@@ -51,11 +51,14 @@ For resume
 
 For MNIST
 
-	python main_mnist.py --gpus=1 --majority-enable --network=LFC --epochs=100
+	python main_mnist.py --gpus=0 --network=LFC --epochs=100
+	python main_mnist.py --gpus=0 --majority-enable --majority-apx --majority_size=9 --network=LFC --epochs=100
 	
 	flags:
-	--majority-enable --> True/False flag
-	--network=LFC/SFC
+	--majority-enable  		--> True/False (Default: False)
+	--majority_size=3/5/7/9 --> (Default: 3)
+	--majority-apx    		--> True/False (Default: False)
+	--network=LFC/SFC		--> (Default: SFC)
 
 
 
