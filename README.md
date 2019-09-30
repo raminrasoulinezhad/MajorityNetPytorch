@@ -64,6 +64,10 @@ For MNIST
 
 # Appendix A
 
+To deal with "Failed installation of package breaks apt-get" 
+
+	sudo apt-get -o Dpkg::Options::="--force-overwrite" install --fix-broken
+
 To remove previous verions (if you want):
 
 	https://askubuntu.com/questions/530043/removing-nvidia-cuda-toolkit-and-installing-new-one
