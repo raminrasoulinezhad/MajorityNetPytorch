@@ -75,6 +75,8 @@ parser.add_argument('--backprop', help="majority back prop mode",
                     default="normalConv", choices=['normalConv', 'majority'])
 parser.add_argument('--depth', type=int, help="resnet depth (d=18    18/34/50/101/152)", 
                     default=18, choices=[18,34,50,101,152])
+parser.add_argument('--efficientnet_scale', type=int, help="efficientnet scale (default=1    1--7)", 
+                    default=1, choices=[1,2,3,4,5,6,7])
 
 def main():
     global args, best_prec1
@@ -127,7 +129,8 @@ def main():
     
     args.num_classes = get_num_classes(args.dataset)
     model_config = {'input_size': args.input_size, 'dataset': args.dataset, 'backprop': args.backprop,
-                    'majority': args.majority, 'padding': args.padding, 'num_classes': args.num_classes, 'depth': args.depth}
+                    'majority': args.majority, 'padding': args.padding, 'num_classes': args.num_classes, 
+                    'depth': args.depth, 'efficientnet_scale': args.efficientnet_scale}
 
     if args.model_config is not '':
         model_config = dict(model_config, **literal_eval(args.model_config))

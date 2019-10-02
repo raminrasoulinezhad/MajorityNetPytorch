@@ -62,6 +62,8 @@ class BasicBlock(nn.Module):
         self.bn1 = nn.BatchNorm2d(planes)
         self.tanh1 = nn.Hardtanh(inplace=True)
         
+        # the second Convolution is not replaced
+        # if you want to replace it, you can use the folowing conditional state
         #if (majority == "M"):
         #    self.conv2 = MajConv(planes, planes, kernel_size=3, backprop=backprop, padding=1)
         #else:
@@ -107,11 +109,13 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.conv1 = BinarizeConv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
+        self.tanh1 = nn.Hardtanh(inplace=True)
         self.conv2 = BinarizeConv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
+        self.tanh2 = nn.Hardtanh(inplace=True)
         self.conv3 = BinarizeConv2d(planes, planes * 4, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 4)
-        self.tanh = nn.Hardtanh(inplace=True)
+        self.tanh3 = nn.Hardtanh(inplace=True)
         self.downsample = downsample
         self.stride = stride
 
@@ -120,11 +124,11 @@ class Bottleneck(nn.Module):
         import pdb; pdb.set_trace()
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.tanh(out)
+        out = self.tanh1(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
-        out = self.tanh(out)
+        out = self.tanh2(out)
 
         out = self.conv3(out)
         out = self.bn3(out)
@@ -134,8 +138,8 @@ class Bottleneck(nn.Module):
 
         out += residual
         if self.do_bntan:
-            out = self.bn2(out)
-            out = self.tanh2(out)
+            out = self.bn3(out)
+            out = self.tanh3(out)
 
         return out
 
@@ -189,16 +193,23 @@ class ResNet_imagenet(ResNet):
         self.inplanes = 64
         self.conv1 = BinarizeConv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        self.tanh = nn.Hardtanh(inplace=True)
+        self.tanh1 = nn.Hardtanh(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+        
         self.avgpool = nn.AvgPool2d(7)
+        self.bn2 = nn.BatchNorm1d(512)
+        self.tanh2 = nn.Hardtanh(inplace=True)
+
         self.fc = BinarizeLinear(512 * block.expansion, num_classes)
+        self.bn3 = nn.BatchNorm1d(num_classes)
+        self.logsoftmax = nn.LogSoftmax(dim=1)
 
         init_model(self)
+
         self.regime = {
             0: {'optimizer': 'SGD', 'lr': 1e-1,
                 'weight_decay': 1e-4, 'momentum': 0.9},
@@ -235,6 +246,7 @@ class ResNet_20(ResNet):
         self.logsoftmax = nn.LogSoftmax(dim=1)
 
         init_model(self)
+
         if (optimizer == 'Adam'):
             self.regime = {
                 0: {'optimizer': 'Adam', 'lr': 5e-3},
@@ -277,4 +289,4 @@ def resnet_binary(**kwargs):
         depth = 20						# it was depth or 18 (for resnet-20, it must be 20)
         return ResNet_20(num_classes=num_classes, block=BasicBlock, depth=depth, majority=majority, backprop=backprop)
     else:
-        raise Exception('Ramin: resnet_binary is not ready for anydataset rather than Cifar 10/100/imagenet')
+        raise Exception('resnet_binary is not ready for anydataset rather than Cifar10/100 and imagenet')
