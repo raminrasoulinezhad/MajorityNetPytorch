@@ -70,9 +70,11 @@ class BasicBlock(nn.Module):
         #    self.conv2 = Binaryconv3x3(planes, planes)
 
         self.conv2 = Binaryconv3x3(planes, planes)
-
         self.bn2 = nn.BatchNorm2d(planes)
         self.tanh2 = nn.Hardtanh(inplace=True)
+
+        self.bn3 = nn.BatchNorm2d(planes)
+        self.tanh3 = nn.Hardtanh(inplace=True)
 
         self.downsample = downsample
         self.do_bntan=do_bntan;
@@ -88,6 +90,7 @@ class BasicBlock(nn.Module):
         out = self.tanh1(out)
 
         out = self.conv2(out)
+        out = self.bn2(out)
 
         if self.downsample is not None:
             if residual.data.max()>1:
@@ -96,8 +99,8 @@ class BasicBlock(nn.Module):
 
         out += residual
         if self.do_bntan:
-            out = self.bn2(out)
-            out = self.tanh2(out)
+            out = self.bn3(out)
+            out = self.tanh3(out)
 
         return out
 
@@ -110,12 +113,18 @@ class Bottleneck(nn.Module):
         self.conv1 = BinarizeConv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.tanh1 = nn.Hardtanh(inplace=True)
+
         self.conv2 = BinarizeConv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.tanh2 = nn.Hardtanh(inplace=True)
+
         self.conv3 = BinarizeConv2d(planes, planes * 4, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 4)
         self.tanh3 = nn.Hardtanh(inplace=True)
+
+        self.bn4 = nn.BatchNorm2d(planes * 4)
+        self.tanh4 = nn.Hardtanh(inplace=True)
+
         self.downsample = downsample
         self.stride = stride
 
@@ -138,8 +147,8 @@ class Bottleneck(nn.Module):
 
         out += residual
         if self.do_bntan:
-            out = self.bn3(out)
-            out = self.tanh3(out)
+            out = self.bn4(out)
+            out = self.tanh4(out)
 
         return out
 
