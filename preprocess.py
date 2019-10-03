@@ -11,6 +11,9 @@ import random
 # our values
 __imagenet_stats = {'mean': [0.54478045, 0.5144752, 0.46473625],'std': [0.54477955, 0.5328848, 0.53526375]}
 
+# These number are defined for ImageNet in EfficientNet implementation
+#       MEAN_RGB = [0.485 * 255, 0.456 * 255, 0.406 * 255]
+#       STDDEV_RGB = [0.229 * 255, 0.224 * 255, 0.225 * 255]
 __imagenet_pca = {
     'eigval': torch.Tensor([0.2175, 0.0188, 0.0045]),
     'eigvec': torch.Tensor([
