@@ -16,7 +16,7 @@ After installation
 
 1- creat a new environment using:
 ```
-virtualenv -p /usr/bin/python3 venv3 && pip install torch torchvision numpy bokeh tensorboardX==1.6 scipy pandas
+virtualenv -p /usr/bin/python3 venv3 && source venv3/bin/activate && pip install torch torchvision numpy bokeh tensorboardX==1.6 scipy pandas
 ```
 2- Build Majority Cuda:
 ```
@@ -88,4 +88,10 @@ To install CuDNN
 After installation (you should export this library path as well):
 
 	export LD_LIBRARY_PATH=/usr/local/cuda-10.1/targets/x86_64-linux/lib/
+
+# Appendix B
+
+For EfficientNet we used the following project: 
+
+	https://github.com/lukemelas/EfficientNet-PyTorch
 

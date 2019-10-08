@@ -67,6 +67,8 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', type=str, metavar='FILE',
                     help='evaluate model FILE on validation set')
+parser.add_argument('--evaluate_efficientnet', action="store_true", default=False,
+                    help='evaluate EfficientNet on validation set')
 parser.add_argument('--majority', help="majority configuration", 
                     default="BBBBB+B")
 parser.add_argument('--padding', type=int, help="padding parameter", 
@@ -75,15 +77,17 @@ parser.add_argument('--backprop', help="majority back prop mode",
                     default="normalConv", choices=['normalConv', 'majority'])
 parser.add_argument('--depth', type=int, help="resnet depth (d=18    18/34/50/101/152)", 
                     default=18, choices=[18,34,50,101,152])
-parser.add_argument('--efficientnet_scale', type=int, help="efficientnet scale (default=1    1--7)", 
-                    default=1, choices=[1,2,3,4,5,6,7])
+parser.add_argument('--efficientnet_scale', type=int, help="efficientnet scale (default=0    0--7)", 
+                    default=0, choices=[0,1,2,3,4,5,6,7])
+parser.add_argument('--pretrained', action='store_true', default=False,
+                    help='use pre-trained model')
 
 def main():
     global args, best_prec1
     best_prec1 = 0
     args = parser.parse_args()
 
-    if args.evaluate:
+    if args.evaluate or args.evaluate_efficientnet:
         args.results_dir = '/tmp'
     if args.save is '':
         args.save = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -130,7 +134,7 @@ def main():
     args.num_classes = get_num_classes(args.dataset)
     model_config = {'input_size': args.input_size, 'dataset': args.dataset, 'backprop': args.backprop,
                     'majority': args.majority, 'padding': args.padding, 'num_classes': args.num_classes, 
-                    'depth': args.depth, 'efficientnet_scale': args.efficientnet_scale}
+                    'depth': args.depth, 'efficientnet_scale': args.efficientnet_scale, 'pretrained': args.pretrained}
 
     if args.model_config is not '':
         model_config = dict(model_config, **literal_eval(args.model_config))
@@ -189,7 +193,7 @@ def main():
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
-    if args.evaluate:
+    if args.evaluate or args.evaluate_efficientnet:
         validate(val_loader, model, criterion, 0)
         return
 

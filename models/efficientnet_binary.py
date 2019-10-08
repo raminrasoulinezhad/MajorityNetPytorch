@@ -1,9 +1,10 @@
 # source:
-#		https://github.com/qubvel/efficientnet/blob/master/efficientnet/model.py	(unofficial but so clear)		
-#		 
+#		https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet
 #		https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/efficientnet_model.py (official - Author)
 #		https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/main.py
 #		
+#		https://github.com/qubvel/efficientnet/blob/master/efficientnet/model.py	(unofficial but so clear)		
+#		 
 #		https://github.com/lukemelas/EfficientNet-PyTorch/blob/master/efficientnet_pytorch/model.py   (unofficial)
 #
 #		https://github.com/zsef123/EfficientNets-PyTorch/blob/master/models/effnet.py (unofficial)
@@ -14,6 +15,7 @@ import torchvision.transforms as transforms
 import math
 from .binarized_modules import  BinarizeLinear,BinarizeConv2d
 from .majority_cuda import * 
+from .efficientnet_pytorch import EfficientNet
 
 __all__ = ['efficientnet_binary']
 
@@ -132,9 +134,9 @@ class MobileNetBlock(nn.Module):
 		return x
 
 
-class EfficientNet(nn.Module):
-	def __init__(self, num_classes=1000, scale=1,  majority="BBBBBBB", backprop='normalConv', optimizer='Adam', dataset='imagenet'):
-		super(EfficientNet, self).__init__()
+class EfficientNet_my(nn.Module):
+	def __init__(self, num_classes=1000, scale=0,  majority="BBBBBBB", backprop='normalConv', optimizer='Adam', dataset='imagenet'):
+		super(EfficientNet_my, self).__init__()
 		self.dataset = dataset
 		if dataset == 'imagenet':
 			strides = [1, 2, 2, 2, 1, 2, 1]
@@ -157,19 +159,19 @@ class EfficientNet(nn.Module):
 		kernels = [3, 3, 5, 3, 5, 5, 3]
 
 
-		self.conv1 = BinarizeConv2d(3, 32*scale, kernel_size=3, stride=2, padding=1, bias=False)
-		self.bn1 = nn.BatchNorm2d(32*scale, eps=1e-03, momentum=0.01)
+		self.conv1 = BinarizeConv2d(3, 32, kernel_size=3, stride=2, padding=1, bias=False)
+		self.bn1 = nn.BatchNorm2d(32, eps=1e-03, momentum=0.01)
 		self.tanh1 = nn.Hardtanh(inplace=True)
 
-		self.layer0 = self._make_layer(d_ins[0],          32*scale, channels[0]*scale, layers[0], kernel=kernels[0], expansion=expansions[0], stride=strides[0], majority=majority[0], backprop=backprop)
-		self.layer1 = self._make_layer(d_ins[1], channels[0]*scale, channels[1]*scale, layers[1], kernel=kernels[1], expansion=expansions[1], stride=strides[1], majority=majority[1], backprop=backprop)
-		self.layer2 = self._make_layer(d_ins[2], channels[1]*scale, channels[2]*scale, layers[2], kernel=kernels[2], expansion=expansions[2], stride=strides[2], majority=majority[2], backprop=backprop)
-		self.layer3 = self._make_layer(d_ins[3], channels[2]*scale, channels[3]*scale, layers[3], kernel=kernels[3], expansion=expansions[3], stride=strides[3], majority=majority[3], backprop=backprop)
-		self.layer4 = self._make_layer(d_ins[4], channels[3]*scale, channels[4]*scale, layers[4], kernel=kernels[4], expansion=expansions[4], stride=strides[4], majority=majority[4], backprop=backprop)
-		self.layer5 = self._make_layer(d_ins[5], channels[4]*scale, channels[5]*scale, layers[5], kernel=kernels[5], expansion=expansions[5], stride=strides[5], majority=majority[5], backprop=backprop)
-		self.layer6 = self._make_layer(d_ins[6], channels[5]*scale, channels[6]*scale, layers[6], kernel=kernels[6], expansion=expansions[6], stride=strides[6], majority=majority[6], backprop=backprop)
+		self.layer0 = self._make_layer(d_ins[0],          32, channels[0], layers[0], kernel=kernels[0], expansion=expansions[0], stride=strides[0], majority=majority[0], backprop=backprop)
+		self.layer1 = self._make_layer(d_ins[1], channels[0], channels[1], layers[1], kernel=kernels[1], expansion=expansions[1], stride=strides[1], majority=majority[1], backprop=backprop)
+		self.layer2 = self._make_layer(d_ins[2], channels[1], channels[2], layers[2], kernel=kernels[2], expansion=expansions[2], stride=strides[2], majority=majority[2], backprop=backprop)
+		self.layer3 = self._make_layer(d_ins[3], channels[2], channels[3], layers[3], kernel=kernels[3], expansion=expansions[3], stride=strides[3], majority=majority[3], backprop=backprop)
+		self.layer4 = self._make_layer(d_ins[4], channels[3], channels[4], layers[4], kernel=kernels[4], expansion=expansions[4], stride=strides[4], majority=majority[4], backprop=backprop)
+		self.layer5 = self._make_layer(d_ins[5], channels[4], channels[5], layers[5], kernel=kernels[5], expansion=expansions[5], stride=strides[5], majority=majority[5], backprop=backprop)
+		self.layer6 = self._make_layer(d_ins[6], channels[5], channels[6], layers[6], kernel=kernels[6], expansion=expansions[6], stride=strides[6], majority=majority[6], backprop=backprop)
 		
-		self.conv2 = BinarizeConv2d(channels[6]*scale, 1280, kernel_size=1, stride=1, padding=0, bias=False)
+		self.conv2 = BinarizeConv2d(channels[6], 1280, kernel_size=1, stride=1, padding=0, bias=False)
 		self.bn2 = nn.BatchNorm2d(1280, eps=1e-03, momentum=0.01)
 		self.tanh2 = nn.Hardtanh(inplace=True)
 
@@ -229,7 +231,7 @@ class EfficientNet(nn.Module):
 		x = self.bn2(x)
 		x = self.tanh2(x)
 
-		if not (self.dataset in ['cifar10', 'cifar100', 'svhn']):
+		if self.dataset in ['imagenet']:
 			x = self.avgpool(x)
 			x = self.bn3(x)
 			x = self.tanh3(x)
@@ -244,11 +246,19 @@ class EfficientNet(nn.Module):
 
 		
 def efficientnet_binary(**kwargs):
-	num_classes, dataset, majority, backprop, efficientnet_scale = map(kwargs.get, ['num_classes', 'dataset', 'majority', 'backprop', 'efficientnet_scale'])
+	num_classes, dataset, majority, backprop, efficientnet_scale, pretrained = map(kwargs.get, ['num_classes', 'dataset', 'majority', 'backprop', 'efficientnet_scale', 'pretrained'])
 
 	supported_datasets = ['imagenet', 'cifar10', 'cifar100', 'svhn']
 	if dataset in supported_datasets:
-		return EfficientNet(num_classes=num_classes, scale=efficientnet_scale, majority=majority, backprop=backprop, dataset=dataset)
-
+		# to use my EfficientNet
+		#return EfficientNet_my(num_classes=num_classes, scale=efficientnet_scale, majority=majority, backprop=backprop, dataset=dataset)
+		
+		arch = 'efficientnet-b' + str(efficientnet_scale)
+		if pretrained:
+		    print("=> using pre-trained model '{}'".format(arch))
+		    return EfficientNet.from_pretrained(arch)
+		else:
+		    print("=> creating model '{}'".format(arch))
+		    return EfficientNet.from_name(arch)
 	else:
 		raise Exception('efficientnet_binary is not ready for anydataset rather than imagenet')
