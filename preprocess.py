@@ -2,18 +2,11 @@ import torch
 import torchvision.transforms as transforms
 import random
 
-### It is eddited according to the input x to the network by Cifar10 --> input x is now between 1 and -1 which is going to be quantized by 8 bit
-### input_max_ramin, input_min_ramin = 2.64, -2.1179
-### mean_new = ((max+min)/2)*std + mean = 0.26105 * std + mean
-### std_new  = ((max-min)/2)*std        = 2.37895 * std 
-# original values
-#__imagenet_stats = {'mean': [0.485, 0.456, 0.406],'std': [0.229, 0.224, 0.225]}
-# our values
-__imagenet_stats = {'mean': [0.54478045, 0.5144752, 0.46473625],'std': [0.54477955, 0.5328848, 0.53526375]}
-
 # These number are defined for ImageNet in EfficientNet implementation
-#       MEAN_RGB = [0.485 * 255, 0.456 * 255, 0.406 * 255]
-#       STDDEV_RGB = [0.229 * 255, 0.224 * 255, 0.225 * 255]
+__imagenet_stats = {'mean': [0.485, 0.456, 0.406],'std': [0.229, 0.224, 0.225]}
+# our values
+__cifar_svhn_stats = {'mean': [0.54478045, 0.5144752, 0.46473625],'std': [0.54477955, 0.5328848, 0.53526375]}
+
 __imagenet_pca = {
     'eigval': torch.Tensor([0.2175, 0.0188, 0.0045]),
     'eigvec': torch.Tensor([
@@ -86,8 +79,9 @@ def inception_color_preproccess(input_size, normalize=__imagenet_stats):
 
 def get_transform(name='imagenet', input_size=None,
                   scale_size=None, normalize=None, augment=True):
-    normalize = normalize or __imagenet_stats
+    
     if name == 'imagenet':
+        normalize = normalize or __imagenet_stats
         scale_size = scale_size or 256
         input_size = input_size or 224
         if augment:
@@ -96,6 +90,7 @@ def get_transform(name='imagenet', input_size=None,
             return scale_crop(input_size=input_size,
                               scale_size=scale_size, normalize=normalize)
     elif ('cifar' in name) or ('svhn' == name):
+        normalize = normalize or __cifar_svhn_stats
         input_size = input_size or 32
         if augment:
             scale_size = scale_size or 40
@@ -116,7 +111,8 @@ def get_transform(name='imagenet', input_size=None,
             scale_size = scale_size or 32
             return scale_crop(input_size=input_size,
                               scale_size=scale_size, normalize=normalize)
-
+    else:
+        raise Exception('there is no defined preprocess on {} data set, check ./preprocess.py --> method: get_transform'.format(name))
 
 class Lighting(object):
     """Lighting noise(AlexNet - style PCA - based noise)"""
