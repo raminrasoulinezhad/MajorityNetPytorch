@@ -53,6 +53,8 @@ parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('-b', '--batch-size', default=50, type=int,
                     metavar='N', help='mini-batch size (default: 50)')
+parser.add_argument('--batch-size-val-ratio', default=1, type=int,
+                    metavar='N', help='mini-batch-validate = mini-batch/ratio')
 parser.add_argument('--optimizer', default='SGD', type=str, metavar='OPT',
                     help='optimizer function used')
 parser.add_argument('--lr', '--learning_rate', default=0.1, type=float,
@@ -190,7 +192,7 @@ def main():
     val_data = get_dataset(args.dataset, 'val', transform['eval'])
     val_loader = torch.utils.data.DataLoader(
         val_data,
-        batch_size=args.batch_size, shuffle=False,
+        batch_size=int(args.batch_size/args.batch_size_val_ratio), shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
     if args.evaluate or args.evaluate_efficientnet:
