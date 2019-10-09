@@ -91,7 +91,7 @@ After installation (you should export this library path as well):
 
 # Appendix B
 
-For EfficientNet we used the following project: 
+For EfficientNet we used the following project (48th commit in 29th Augest 2019 (commit: de40cbfec8244a6ddbb367fd491d700ecc2eef85), Downloaded in 9th October 2019): 
 
 	https://github.com/lukemelas/EfficientNet-PyTorch
 

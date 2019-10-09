@@ -153,6 +153,17 @@ class EfficientNet(nn.Module):
         self._dropout = self._global_params.dropout_rate
         self._fc = nn.Linear(out_channels, self._global_params.num_classes)
 
+        self.regime = {
+            0: {'optimizer': 'SGD', 'lr': 1e-1, 'weight_decay': 1e-4, 'momentum': 0.9},
+            30: {'lr': 1e-2},
+            60: {'lr': 1e-3},
+            90: {'lr': 1e-4},
+            120: {'lr': 1e-5},
+            150: {'lr': 1e-6},
+            180: {'lr': 1e-7},
+            210: {'lr': 1e-8}
+        }
+
     def extract_features(self, inputs):
         """ Returns output of the final convolution layer """
 
