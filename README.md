@@ -28,6 +28,16 @@ cd models/majority_cuda/ && python setup.py install && cd ./../../
 ```
 
 ## Quick Start
+For binarized EfficientNet on ImageNet:
+
+	python main_binary.py --model=efficientnet_binary --dataset=imagenet --majority=BBBBBBB --gpus=0 -b=50 --pretrained --start-epoch=181 --epochs=500 --batch-size-val-ratio=5
+	--majority=BBBBBBB is not working yet 
+	-b=50 is not the original value (256) but it is the best that we could fit
+	--pretrained to use the pretrained weights 
+	--start-epoch=181 to just start from a good point
+	--epochs=500 to extend the epoch limitations
+	--batch-size-val-ratio=5 is used to help memory management --> higher batch size for training and less for validation (by factor of 5)
+
 For binarized **VGG+maj3** on cifar10/cifar100/svhn, run:
 
 	python main_binary.py --model=vgg_binary --dataset=cifar10 --majority=BMBBM+M --padding=1 --gpus=0
